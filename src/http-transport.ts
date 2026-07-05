@@ -9,16 +9,18 @@
  *
  * Built on Hono (lightweight, fast, TypeScript-native).
  *
- * Endpoints:
+ * Endpoints (SUGAR ONLY — use WebSocket for the full protocol):
  *  GET  /v1/health            → health check
  *  GET  /v1/version           → version info
  *  POST /v1/chat              → fire-and-forget prompt, SSE stream back
+ *  POST /v1/sessions          → create session (convenience)
  *  GET  /v1/sessions          → list sessions (dashboard/monitoring)
- *  POST /v1/sessions          → create session (convenience, WS auto-creates)
  *  GET  /v1/sessions/:id      → get session info
  *  DELETE /v1/sessions/:id    → delete session
- *  POST /v1/sessions/:id/chat → chat in existing session (convenience)
- *  POST /v1/sessions/:id/abort → abort running task (convenience)
+ *
+ * Removed from HTTP (use WebSocket for these):
+ *  POST /v1/sessions/:id/chat  → WS: send command { type: "prompt" }
+ *  POST /v1/sessions/:id/abort → WS: send command { type: "abort" }
  */
 
 import { Hono } from "hono";
@@ -144,41 +146,6 @@ export class HttpTransport {
           !hasExplicitSession,
         );
       });
-    });
-
-    this.app.post("/v1/sessions/:id/chat", async (c) => {
-      const sessionId = c.req.param("id");
-      const body = (await c.req.json().catch(() => ({}))) as {
-        message?: string;
-      };
-
-      if (!body.message) {
-        return c.json({ error: "message is required" }, 400);
-      }
-
-      const pi = await this.sessionManager.getProcess(sessionId);
-
-      return streamSSE(c, async (stream) => {
-        await this.handleChatStream(
-          stream,
-          pi,
-          body.message!,
-          sessionId,
-          false,
-        ); // explicit session, keep alive
-      });
-    });
-
-    this.app.post("/v1/sessions/:id/abort", async (c) => {
-      const sessionId = c.req.param("id");
-      try {
-        const pi = await this.sessionManager.getProcess(sessionId);
-        const adapter = new RpcAdapter(pi);
-        await adapter.sendCommand({ type: "abort" });
-        return c.json({ success: true });
-      } catch (err) {
-        return c.json({ error: String(err) }, 500);
-      }
     });
   }
 
