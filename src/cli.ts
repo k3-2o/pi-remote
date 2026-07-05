@@ -131,16 +131,19 @@ EXAMPLES
 
     // Start new
     await startServer(args.slice(1));
+    return;
   }
 
   // ── Start ───────────────────────────────────────────────
   if (command === "start") {
     await startServer(args.slice(1));
+    return;
   }
 
   // ── Relay (debug mode) ─────────────────────────────────
   if (command === "relay") {
     await runRelayMode();
+    return;
   }
 
   // ── Unknown command ────────────────────────────────────
