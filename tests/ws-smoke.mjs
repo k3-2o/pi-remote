@@ -18,6 +18,13 @@ import { setTimeout as sleep } from "node:timers/promises";
 const PORT = "8085";
 let failed = false;
 
+// Clean up any leftover state
+import { unlinkSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
+const PID_FILE = resolve(homedir(), ".pi", "pi-server.pid");
+try { if (existsSync(PID_FILE)) unlinkSync(PID_FILE); } catch {}
+
 function fail(msg) {
   console.error("✗ FAIL:", msg);
   failed = true;

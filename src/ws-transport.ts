@@ -320,11 +320,13 @@ export class WsTransport {
     switch (msg.type) {
       case "command": {
         const payload = msg.payload as Record<string, unknown> | undefined;
+        const requestId = msg.requestId as string | undefined;
         if (!payload) {
           this.send(
             ws,
             {
               type: "error",
+              requestId,
               code: "INVALID_COMMAND",
               message: "payload required",
             },
@@ -339,6 +341,7 @@ export class WsTransport {
             ws,
             {
               type: "error",
+              requestId,
               code: "INVALID_COMMAND",
               message: "payload.type required",
             },
@@ -351,6 +354,7 @@ export class WsTransport {
         if (commandType === "list_sessions") {
           this.send(ws, {
             type: "response",
+            requestId,
             seq: this.seq++,
             payload: { sessions: this.sessionManager.list() },
           });
@@ -360,6 +364,7 @@ export class WsTransport {
         if (commandType === "get_health") {
           this.send(ws, {
             type: "response",
+            requestId,
             seq: this.seq++,
             payload: {
               status: "ok",
@@ -375,6 +380,7 @@ export class WsTransport {
         if (commandType === "get_version") {
           this.send(ws, {
             type: "response",
+            requestId,
             seq: this.seq++,
             payload: { version: "0.2.0", protocol: `${PROTOCOL_VERSION}.0.0` },
           });
@@ -388,6 +394,7 @@ export class WsTransport {
             const info = await this.sessionManager.create(sid, cwd);
             this.send(ws, {
               type: "response",
+              requestId,
               seq: this.seq++,
               payload: info,
             });
@@ -396,6 +403,7 @@ export class WsTransport {
               ws,
               {
                 type: "error",
+                requestId,
                 code: "SESSION_CREATE_FAILED",
                 message: String(err),
               },
@@ -412,6 +420,7 @@ export class WsTransport {
               ws,
               {
                 type: "error",
+                requestId,
                 code: "NO_SESSION",
                 message: "No session to delete",
               },
@@ -424,6 +433,7 @@ export class WsTransport {
             if (targetSid === state.sessionId) state.sessionId = null;
             this.send(ws, {
               type: "response",
+              requestId,
               seq: this.seq++,
               payload: { success: true },
             });
@@ -432,6 +442,7 @@ export class WsTransport {
               ws,
               {
                 type: "error",
+                requestId,
                 code: "SESSION_DELETE_FAILED",
                 message: String(err),
               },
@@ -448,6 +459,7 @@ export class WsTransport {
               ws,
               {
                 type: "error",
+                requestId,
                 code: "INVALID_SESSION",
                 message: "sessionId required for switch_session",
               },
@@ -461,6 +473,7 @@ export class WsTransport {
               ws,
               {
                 type: "error",
+                requestId,
                 code: "SESSION_NOT_FOUND",
                 message: `Session ${targetSid} not found`,
               },
@@ -471,6 +484,7 @@ export class WsTransport {
           state.sessionId = targetSid;
           this.send(ws, {
             type: "response",
+            requestId,
             seq: this.seq++,
             payload: {
               type: "session_switched",
@@ -488,6 +502,7 @@ export class WsTransport {
             ws,
             {
               type: "error",
+              requestId,
               code: "NO_SESSION",
               message:
                 "No active session. Connect to create one, or use create_session.",
@@ -556,6 +571,7 @@ export class WsTransport {
           // Forward the Pi response to client
           this.send(ws, {
             type: "response",
+            requestId,
             seq: this.seq++,
             sessionId: sid,
             payload: response,
@@ -565,6 +581,7 @@ export class WsTransport {
             ws,
             {
               type: "error",
+              requestId,
               code: "COMMAND_FAILED",
               message: String(err),
             },
