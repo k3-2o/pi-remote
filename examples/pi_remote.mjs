@@ -41,9 +41,9 @@ class PiRemote {
     const result = { text: "", toolCalls: [] };
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "", currentEvent = "";
+    let buffer = "", currentEvent = "", finished = false;
 
-    while (true) {
+    while (!finished) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -65,6 +65,7 @@ class PiRemote {
           result.toolCalls.push({ name: data.tool, args: data.args });
           onTool?.({ name: data.tool, args: data.args });
         } else if (line.startsWith("data: ") && currentEvent === "done") {
+          finished = true;
           break;
         }
       }
