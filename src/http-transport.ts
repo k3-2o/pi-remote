@@ -305,7 +305,13 @@ export class HttpTransport {
 
       // One-shot chat: clean up immediately after response
       if (temporary) {
-        this.sessionManager.delete(sessionId).catch(() => {});
+        this.logger.info("Cleaning up temp session", { sessionId });
+        this.sessionManager.delete(sessionId).catch((err) => {
+          this.logger.error("Failed to clean up temp session", {
+            sessionId,
+            error: String(err),
+          });
+        });
       }
     }
   }
