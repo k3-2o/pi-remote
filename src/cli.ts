@@ -164,8 +164,8 @@ EXAMPLES
  * Start the pi-server in foreground.
  */
 async function startServer(cliArgs: string[]): Promise<void> {
-  // Parse CLI args
   let configPath: string | undefined;
+  let detach = false;
 
   for (let i = 0; i < cliArgs.length; i++) {
     switch (cliArgs[i]) {
@@ -182,10 +182,33 @@ async function startServer(cliArgs: string[]): Promise<void> {
       case "--log-level":
         process.env.PI_SERVER_LOG_LEVEL = cliArgs[++i];
         break;
+      case "--detach":
+      case "-d":
+        detach = true;
+        break;
     }
   }
 
   const config = loadConfig(configPath);
+
+  // --detach: fork and exit, child runs the server
+  if (detach) {
+    const { spawn } = await import("node:child_process");
+    const args = process.argv
+      .slice(1)
+      .filter((a) => a !== "--detach" && a !== "-d");
+    const child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: "ignore",
+      env: process.env,
+    });
+    child.unref();
+    console.log(
+      `pi-remote detached (PID ${child.pid}). Check status with: pi-remote status`,
+    );
+    process.exit(0);
+  }
+
   const server = new PiServer(config);
 
   try {
