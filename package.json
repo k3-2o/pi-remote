@@ -1,12 +1,12 @@
 {
   "name": "pi-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A thin server runtime for Pi Coding Agent — HTTP/WebSocket wrapper around pi --mode rpc",
   "type": "module",
   "main": "dist/cli.js",
   "bin": {
-    "pi-server": "dist/cli.js"
+    "pi-remote": "dist/cli.js"
   },
   "exports": {
     "./*": "./dist/*.js"

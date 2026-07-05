@@ -1,5 +1,5 @@
 /**
- * HTTP Transport — exposes pi-server's API over HTTP/1.1 with SSE streaming.
+ * HTTP Transport — exposes pi-remote's API over HTTP/1.1 with SSE streaming.
  *
  * Built on Hono (lightweight, fast, TypeScript-native).
  *

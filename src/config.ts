@@ -1,9 +1,9 @@
 /**
- * Config loader for pi-server.
+ * Config loader for pi-remote.
  *
  * Loads from:
- * 1. ~/.config/pi-server/config.json
- * 2. ~/.pi/pi-server.json (fallback)
+ * 1. ~/.config/pi-remote/config.json
+ * 2. ~/.pi/pi-remote.json (fallback)
  * 3. Environment variable overrides
  *
  * All config has sensible defaults (zero-config startup).

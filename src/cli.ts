@@ -1,14 +1,14 @@
 /**
- * pi-server CLI — entry point.
+ * pi-remote CLI — remote access for Pi (internally pi-server).
  *
  * Usage:
- *   pi-server start          Start the server
- *   pi-server stop           Stop the server
- *   pi-server restart        Restart the server
- *   pi-server status         Check server status
- *   pi-server relay          Direct stdin/stdout relay mode (debugging)
- *   pi-server --version      Print version
- *   pi-server --help         Print help
+ *   pi-remote start          Start the server
+ *   pi-remote stop           Stop the server
+ *   pi-remote restart        Restart the server
+ *   pi-remote status         Check server status
+ *   pi-remote relay          Direct stdin/stdout relay mode (debugging)
+ *   pi-remote --version      Print version
+ *   pi-remote --help         Print help
  */
 
 import { PiServer } from "./server.js";
@@ -16,7 +16,7 @@ import { PiProcess } from "./pi-process.js";
 import { loadConfig } from "./config.js";
 import { ConsoleLogger } from "./logger.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -25,16 +25,16 @@ async function main(): Promise<void> {
   // ── Help ────────────────────────────────────────────────
   if (!command || command === "--help" || command === "-h") {
     console.log(`
-pi-server v${VERSION} — A thin server runtime for Pi Coding Agent
+pi-remote v${VERSION} — Remote access for Pi Coding Agent
 
 USAGE
-  pi-server start          Start the server (foreground)
-  pi-server stop           Stop the running server
-  pi-server restart        Restart the server
-  pi-server status         Check if the server is running
-  pi-server relay          Direct stdin/stdout relay (debug mode)
-  pi-server --version      Print version
-  pi-server --help         Print this help
+  pi-remote start          Start the server (foreground)
+  pi-remote stop           Stop the running server
+  pi-remote restart        Restart the server
+  pi-remote status         Check if the server is running
+  pi-remote relay          Direct stdin/stdout relay (debug mode)
+  pi-remote --version      Print version
+  pi-remote --help         Print this help
 
 OPTIONS
   --port, -p <port>        HTTP port (default: 8080, env: PI_SERVER_PORT)
@@ -43,10 +43,10 @@ OPTIONS
   --log-level <level>      Log level: debug, info, warn, error
 
 EXAMPLES
-  pi-server start
-  pi-server start --port 9090
-  pi-server status
-  pi-server relay
+  pi-remote start
+  pi-remote start --port 9090
+  pi-remote status
+  pi-remote relay
 `);
     process.exit(0);
   }
@@ -64,14 +64,14 @@ EXAMPLES
       try {
         // Check if process is alive
         process.kill(pid, 0);
-        console.log(`pi-server is running (PID ${pid})`);
+        console.log(`pi-remote is running (PID ${pid})`);
         process.exit(0);
       } catch {
-        console.log("pi-server is not running (stale PID file)");
+        console.log("pi-remote is not running (stale PID file)");
         process.exit(1);
       }
     } else {
-      console.log("pi-server is not running");
+      console.log("pi-remote is not running");
       process.exit(1);
     }
   }
@@ -80,13 +80,13 @@ EXAMPLES
   if (command === "stop") {
     const pid = PiServer.readPidFile();
     if (!pid) {
-      console.log("pi-server is not running");
+      console.log("pi-remote is not running");
       process.exit(1);
     }
 
     try {
       process.kill(pid, "SIGTERM");
-      console.log(`Sent SIGTERM to pi-server (PID ${pid})`);
+      console.log(`Sent SIGTERM to pi-remote (PID ${pid})`);
 
       // Wait for process to exit
       let waited = 0;
@@ -96,7 +96,7 @@ EXAMPLES
           await new Promise((r) => setTimeout(r, 500));
           waited += 0.5;
         } catch {
-          console.log("pi-server stopped");
+          console.log("pi-remote stopped");
           process.exit(0);
         }
       }
@@ -104,13 +104,13 @@ EXAMPLES
       // Force kill if still running
       try {
         process.kill(pid, "SIGKILL");
-        console.log("pi-server force killed");
+        console.log("pi-remote force killed");
       } catch {
         // already dead
       }
       process.exit(0);
     } catch (err) {
-      console.error(`Failed to stop pi-server: ${err}`);
+      console.error(`Failed to stop pi-remote: ${err}`);
       process.exit(1);
     }
   }
@@ -148,7 +148,7 @@ EXAMPLES
 
   // ── Unknown command ────────────────────────────────────
   console.error(`Unknown command: ${command}`);
-  console.error("Run 'pi-server --help' for usage.");
+  console.error("Run 'pi-remote --help' for usage.");
   process.exit(1);
 }
 
@@ -182,12 +182,12 @@ async function startServer(cliArgs: string[]): Promise<void> {
 
   try {
     await server.start();
-    console.error(`pi-server v${VERSION} started on ${server.url}`);
+    console.error(`pi-remote v${VERSION} started on ${server.url}`);
 
     // Keep running until SIGINT/SIGTERM
     await new Promise(() => {});
   } catch (err) {
-    console.error(`Failed to start pi-server: ${err}`);
+    console.error(`Failed to start pi-remote: ${err}`);
     process.exit(1);
   }
 }
