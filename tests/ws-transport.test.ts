@@ -38,9 +38,7 @@ function connect(): Promise<WebSocket> {
 }
 
 async function handshake(ws: WebSocket, clientId = "test") {
-  ws.send(
-    JSON.stringify({ type: "hello", protocolVersion: 1, clientId }),
-  );
+  ws.send(JSON.stringify({ type: "hello", protocolVersion: 1, clientId }));
   return new Promise<Record<string, unknown>>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Welcome timeout")), 5000);
     ws.once("message", (raw) => {
@@ -94,7 +92,10 @@ beforeAll(async () => {
 
   // Wait for server to be ready
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("Server startup timeout")), 15000);
+    const timer = setTimeout(
+      () => reject(new Error("Server startup timeout")),
+      15000,
+    );
     server!.stderr?.on("data", (chunk: Buffer) => {
       if (chunk.toString().includes("pi-remote started")) {
         clearTimeout(timer);
@@ -151,7 +152,9 @@ describe("WebSocket Handshake", () => {
 
   it("should reject non-hello first message", async () => {
     const ws = await connect();
-    ws.send(JSON.stringify({ type: "command", payload: { type: "get_health" } }));
+    ws.send(
+      JSON.stringify({ type: "command", payload: { type: "get_health" } }),
+    );
 
     const error = await new Promise<Record<string, unknown>>((resolve) => {
       ws.once("message", (raw) => resolve(JSON.parse(raw.toString())));
@@ -288,12 +291,16 @@ describe("Session-Scoped Commands", () => {
     ws.close();
   });
 
-  it("get_state forwards to Pi and returns response", { timeout: 20_000 }, async () => {
-    const resp = await sendCommand(ws, { type: "get_state" });
-    expect(resp.type).toBe("response");
-    // Pi's get_state response includes session info
-    expect(resp.payload).toBeDefined();
-  });
+  it(
+    "get_state forwards to Pi and returns response",
+    { timeout: 20_000 },
+    async () => {
+      const resp = await sendCommand(ws, { type: "get_state" });
+      expect(resp.type).toBe("response");
+      // Pi's get_state response includes session info
+      expect(resp.payload).toBeDefined();
+    },
+  );
 
   it("get_available_models returns model list from Pi", async () => {
     const resp = await sendCommand(ws, { type: "get_available_models" });
@@ -307,41 +314,45 @@ describe("Session-Scoped Commands", () => {
     expect(resp.payload).toBeDefined();
   });
 
-  it("rejects unknown command type with error", { timeout: 20_000 }, async () => {
-    const ws2 = await connect();
-    await handshake(ws2);
-    // Wait for Pi process to start
-    await sleep(1500);
+  it(
+    "rejects unknown command type with error",
+    { timeout: 20_000 },
+    async () => {
+      const ws2 = await connect();
+      await handshake(ws2);
+      // Wait for Pi process to start
+      await sleep(1500);
 
-    ws2.send(
-      JSON.stringify({
-        type: "command",
-        payload: { type: "nonexistent_command" },
-        requestId: "test_unknown",
-      }),
-    );
+      ws2.send(
+        JSON.stringify({
+          type: "command",
+          payload: { type: "nonexistent_command" },
+          requestId: "test_unknown",
+        }),
+      );
 
-    // Wait for response — may get startup events before the response
-    const msg = await new Promise<Record<string, unknown>>((resolve) => {
-      const handler = (raw: Buffer) => {
-        const m = JSON.parse(raw.toString());
-        if (m.requestId === "test_unknown") {
-          ws2.off("message", handler);
-          resolve(m);
-        }
-      };
-      ws2.on("message", handler);
-    });
+      // Wait for response — may get startup events before the response
+      const msg = await new Promise<Record<string, unknown>>((resolve) => {
+        const handler = (raw: Buffer) => {
+          const m = JSON.parse(raw.toString());
+          if (m.requestId === "test_unknown") {
+            ws2.off("message", handler);
+            resolve(m);
+          }
+        };
+        ws2.on("message", handler);
+      });
 
-    // Either a response with error field or direct error from Pi RPC
-    if (msg.type === "response") {
-      // Pi may accept or reject unknown commands
-      expect(msg.payload).toBeDefined();
-    } else if (msg.type === "error") {
-      expect(msg.code).toBeTruthy();
-    }
-    ws2.close();
-  });
+      // Either a response with error field or direct error from Pi RPC
+      if (msg.type === "response") {
+        // Pi may accept or reject unknown commands
+        expect(msg.payload).toBeDefined();
+      } else if (msg.type === "error") {
+        expect(msg.code).toBeTruthy();
+      }
+      ws2.close();
+    },
+  );
 });
 
 describe("Session Lifecycle", () => {
