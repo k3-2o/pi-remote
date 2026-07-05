@@ -33,6 +33,7 @@ USAGE
   pi-remote restart        Restart the server
   pi-remote status         Check if the server is running
   pi-remote relay          Direct stdin/stdout relay (debug mode)
+  pi-remote install        Install as systemd service (auto-start on boot)
   pi-remote --version      Print version
   pi-remote --help         Print this help
 
@@ -47,6 +48,7 @@ EXAMPLES
   pi-remote start --port 9090
   pi-remote status
   pi-remote relay
+  pi-remote install        # installs systemd service, enables auto-start
 `);
     process.exit(0);
   }
@@ -146,6 +148,12 @@ EXAMPLES
     return;
   }
 
+  // ── Install (systemd) ──────────────────────────────────
+  if (command === "install") {
+    await runInstall(args.slice(1));
+    return;
+  }
+
   // ── Unknown command ────────────────────────────────────
   console.error(`Unknown command: ${command}`);
   console.error("Run 'pi-remote --help' for usage.");
@@ -240,6 +248,78 @@ async function runRelayMode(): Promise<void> {
   rl.on("close", () => {
     pi.stop().catch(() => {});
   });
+}
+
+/**
+ * Install pi-remote as a systemd service (Linux only).
+ * Writes unit file, runs systemctl enable --now.
+ */
+async function runInstall(args: string[]): Promise<void> {
+  if (process.platform !== "linux") {
+    console.error(
+      "pi-remote install: systemd is Linux-only. Use pm2 or Docker on other platforms.",
+    );
+    process.exit(1);
+  }
+
+  const { execSync } = await import("node:child_process");
+  const { writeFileSync } = await import("node:fs");
+  const nodePath = process.execPath;
+  const cliPath = process.argv[1];
+  const config = loadConfig();
+
+  // Parse optional --port override
+  for (let i = 0; i < args.length; i++) {
+    if ((args[i] === "--port" || args[i] === "-p") && args[i + 1]) {
+      config.port = parseInt(args[++i], 10);
+    }
+  }
+
+  const user = process.env.USER || process.env.LOGNAME || "nobody";
+  const unit = `[Unit]
+Description=pi-remote — remote access for Pi Coding Agent
+After=network.target
+
+[Service]
+Type=simple
+User=${user}
+ExecStart=${nodePath} ${cliPath} start
+Restart=on-failure
+RestartSec=5
+Environment=PI_SERVER_PORT=${config.port}
+Environment=PI_SERVER_HOST=${config.host}
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+  const unitPath = "/etc/systemd/system/pi-remote.service";
+
+  // Write unit file
+  try {
+    writeFileSync(unitPath, unit, "utf-8");
+    console.log(`Wrote ${unitPath}`);
+  } catch (err) {
+    console.error(`Cannot write ${unitPath} — try: sudo pi-remote install`);
+    process.exit(1);
+  }
+
+  // Reload and enable
+  try {
+    execSync("systemctl daemon-reload", { stdio: "inherit" });
+    execSync("systemctl enable pi-remote", { stdio: "inherit" });
+    execSync("systemctl start pi-remote", { stdio: "inherit" });
+    console.log("\npi-remote installed and running.");
+    console.log("  Check status:  systemctl status pi-remote");
+    console.log("  View logs:     journalctl -u pi-remote -f");
+    console.log("  Uninstall:     sudo systemctl disable --now pi-remote");
+  } catch (err) {
+    console.error(`systemctl failed: ${err}`);
+    console.error(`Unit file written to ${unitPath}. Fix permissions and run:`);
+    console.error(`  sudo systemctl daemon-reload`);
+    console.error(`  sudo systemctl enable --now pi-remote`);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {
