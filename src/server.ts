@@ -1,19 +1,8 @@
 /**
- * PiServer — the main server orchestrator.
- *
- * Owns and coordinates all components:
- * - PiProcessManager (pool of Pi subprocesses)
- * - SessionManager (logical session lifecycle)
- * - HttpTransport (REST API)
- * - WsTransport (WebSocket)
- * - ExtensionUIBridge (extension UI protocol)
- * - AuthProvider (connection authentication)
- *
- * Lifecycle:
- *   start() → initialize all components, bind ports
- *   stop()  → graceful shutdown: drain, close, cleanup
+ * PiServer — HTTP + WebSocket on same port, with extension UI relay.
  */
-
+import { createServer } from "node:http";
+import type { Server } from "node:http";
 import {
   readFileSync,
   writeFileSync,
@@ -23,7 +12,6 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
-import { serve } from "@hono/node-server";
 
 import type { ServerConfig } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
@@ -52,7 +40,7 @@ export class PiServer {
   httpTransport!: HttpTransport;
   wsTransport!: WsTransport;
   authProvider!: AuthProvider;
-  private server: ReturnType<typeof serve> | null = null;
+  private httpServer: Server | null = null;
   private startTime = 0;
 
   constructor(config?: Partial<ServerConfig>) {
@@ -63,17 +51,11 @@ export class PiServer {
     });
   }
 
-  /**
-   * Start the server.
-   */
   async start(): Promise<void> {
     this.startTime = Date.now();
-
-    // Build auth provider from config
     this.authProvider = this.buildAuthProvider();
-
-    // Initialize components
     this.extensionUI = new ExtensionUIBridge();
+
     this.processManager = new PiProcessManager({
       logger: this.logger,
       piOptions: {
@@ -84,41 +66,66 @@ export class PiServer {
       idleTimeoutMs:
         this.config.sessionTimeout > 0 ? this.config.sessionTimeout * 1000 : 0,
     });
+
     this.sessionManager = new SessionManager({
       logger: this.logger,
       processManager: this.processManager,
     });
+    if (this.config.sessionTimeout > 0) this.processManager.startIdleCheck();
 
-    // Start idle process cleanup
-    if (this.config.sessionTimeout > 0) {
-      this.processManager.startIdleCheck();
-    }
-
-    // Set up HTTP transport
     this.httpTransport = new HttpTransport(
       this.sessionManager,
       this.authProvider,
       this.logger,
     );
 
-    // Start HTTP server
-    const app = this.httpTransport.getApp();
+    // Create raw Node http.Server — WS-compatible
+    this.httpServer = createServer(async (req, res) => {
+      const app = this.httpTransport.getApp();
+      // Build a Web Request from the Node request
+      const url = `http://${req.headers.host ?? "localhost"}${req.url}`;
+      const headers = new Headers();
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (v) {
+          if (Array.isArray(v)) v.forEach((x) => headers.append(k, x));
+          else headers.set(k, String(v));
+        }
+      }
+      const method = req.method ?? "GET";
+      let body: Uint8Array | null = null;
+      if (method !== "GET" && method !== "HEAD") {
+        body = (await new Promise<Buffer>((resolve) => {
+          const chunks: Buffer[] = [];
+          req.on("data", (c: Buffer) => chunks.push(c));
+          req.on("end", () => resolve(Buffer.concat(chunks)));
+        })) as Uint8Array;
+      }
+      const webReq = new Request(url, {
+        method,
+        headers,
+        body: body as unknown as BodyInit,
+      });
+      const webRes = await app.fetch(webReq);
+      res.writeHead(webRes.status, Object.fromEntries(webRes.headers));
+      if (webRes.body) {
+        const reader = webRes.body.getReader();
+        const pump = async () => {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              res.end();
+              return;
+            }
+            res.write(value);
+          }
+        };
+        pump();
+      } else {
+        res.end();
+      }
+    });
 
-    this.server = serve(
-      {
-        fetch: app.fetch,
-        port: this.config.port,
-        hostname: this.config.host,
-      },
-      (info) => {
-        this.logger.info("Server listening", {
-          port: info.port,
-          address: info.address,
-        });
-      },
-    );
-
-    // Set up WebSocket transport on the same server
+    // WebSocket on same server
     this.wsTransport = new WsTransport(
       this.sessionManager,
       this.extensionUI,
@@ -126,79 +133,52 @@ export class PiServer {
       this.logger,
       this.config,
     );
+    this.wsTransport.start(this.httpServer);
 
-    // Write PID file
+    // Listen
+    this.httpServer.listen(this.config.port, this.config.host);
+    this.logger.info("Server listening", {
+      port: this.config.port,
+      host: this.config.host,
+    });
+
     this.writePidFile();
-
-    // Handle shutdown signals
     process.on("SIGINT", () => void this.handleSignal("SIGINT"));
     process.on("SIGTERM", () => void this.handleSignal("SIGTERM"));
   }
 
-  /**
-   * Stop the server gracefully.
-   */
   async stop(): Promise<void> {
     this.logger.info("Shutting down...");
-
-    // Stop WebSocket transport
     this.wsTransport.stop();
-
-    // Stop idle checks
     this.processManager.stopIdleCheck();
-
-    // Stop all Pi processes
     await this.processManager.stopAll();
-
-    // Close HTTP server
-    if (this.server) {
+    if (this.httpServer) {
       await new Promise<void>((resolve) => {
-        this.server!.close(() => resolve());
+        this.httpServer!.close(() => resolve());
       });
-      this.server = null;
+      this.httpServer = null;
     }
-
-    // Remove PID file
     this.removePidFile();
-
     this.logger.info("Shutdown complete", {
       uptime: Date.now() - this.startTime,
     });
   }
 
-  /**
-   * Get the URL the server is listening on.
-   */
   get url(): string {
     return `http://${this.config.host}:${this.config.port}`;
   }
-
-  /**
-   * Get server uptime in seconds.
-   */
   get uptime(): number {
     return this.startTime ? (Date.now() - this.startTime) / 1000 : 0;
   }
-
-  /**
-   * Check if server is running.
-   */
   get isRunning(): boolean {
-    return this.server !== null;
+    return this.httpServer !== null;
   }
 
   private buildAuthProvider(): AuthProvider {
     const providers: AuthProvider[] = [];
-
-    if (this.config.auth.enabled && this.config.auth.apiKeys.length > 0) {
+    if (this.config.auth.enabled && this.config.auth.apiKeys.length > 0)
       providers.push(new ApiKeyAuthProvider(this.config.auth.apiKeys));
-    }
-
-    // Always allow local connections as fallback when auth is disabled
-    if (!this.config.auth.enabled) {
-      providers.push(new NoAuthProvider());
-    }
-
+    if (!this.config.auth.enabled) providers.push(new NoAuthProvider());
     return providers.length === 1
       ? providers[0]
       : new CompositeAuthProvider(providers);
@@ -207,58 +187,40 @@ export class PiServer {
   private writePidFile(): void {
     try {
       const dir = resolve(homedir(), ".pi");
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       writeFileSync(PID_FILE, String(process.pid), "utf-8");
     } catch (err) {
-      this.logger.warn("Failed to write PID file", {
-        path: PID_FILE,
-        error: String(err),
-      });
+      this.logger.warn("Failed to write PID file", { error: String(err) });
     }
   }
 
   private removePidFile(): void {
     try {
-      if (existsSync(PID_FILE)) {
-        unlinkSync(PID_FILE);
-      }
+      if (existsSync(PID_FILE)) unlinkSync(PID_FILE);
     } catch (err) {
-      this.logger.warn("Failed to remove PID file", {
-        path: PID_FILE,
-        error: String(err),
-      });
+      this.logger.warn("Failed to remove PID file", { error: String(err) });
     }
   }
 
   private async handleSignal(signal: string): Promise<void> {
     this.logger.info(`Received ${signal}`);
-    const timeout = this.config.server.shutdownTimeout;
     const timer = setTimeout(() => {
-      this.logger.error("Forced shutdown after timeout");
+      this.logger.error("Forced shutdown");
       process.exit(1);
-    }, timeout);
-
+    }, this.config.server.shutdownTimeout);
     if (timer.unref) timer.unref();
-
     await this.stop();
     clearTimeout(timer);
     process.exit(0);
   }
 
-  /**
-   * Read the PID file to check if the server is running.
-   */
   static readPidFile(): number | null {
     try {
       if (existsSync(PID_FILE)) {
         const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
         if (!isNaN(pid) && pid > 0) return pid;
       }
-    } catch {
-      // Ignore read errors
-    }
+    } catch {}
     return null;
   }
 }

@@ -1,24 +1,22 @@
 /**
- * WebSocket Transport — real-time bidirectional communication.
+ * WebSocket Transport — real-time bidirectional communication with Pi events.
  *
- * Protocol (based on marcfargas/pi-server, MIT license):
+ * Protocol:
  * 1. Client connects → sends HelloMessage { protocolVersion, clientId }
- * 2. Server validates → sends WelcomeMessage { sessions, serverVersion, currentSeq }
- * 3. Steady-state: client sends commands, server streams events
- * 4. Extension UI requests are forwarded to client as events
- * 5. Client sends extension_ui_responses back
- *
- * Heartbeat: ping every 30s, pong timeout 10s.
- * Backpressure: drop non-critical at 64KB, close at 1MB.
+ * 2. Server validates → sends WelcomeMessage { sessions, serverVersion, seq }
+ * 3. Client sends commands → routed to session's Pi process
+ * 4. Pi events stream back to client
+ * 5. Extension UI requests relayed through ExtensionUIBridge
  */
 
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "node:http";
+import type { Server } from "node:http";
 import type { SessionManager } from "./session-manager.js";
 import type { ExtensionUIBridge } from "./extension-ui.js";
 import type { AuthProvider } from "./auth.js";
 import type { Logger } from "./logger.js";
-import type { ServerConfig } from "./types.js";
+import { RpcAdapter } from "./rpc-adapter.js";
 
 const PROTOCOL_VERSION = 1;
 
@@ -42,18 +40,22 @@ export class WsTransport {
     private extensionUI: ExtensionUIBridge,
     private authProvider: AuthProvider,
     private logger: Logger,
-    private config: ServerConfig,
+    private config: {
+      server: {
+        heartbeatInterval: number;
+        heartbeatTimeout: number;
+        backpressureThreshold: number;
+        backpressureCritical: number;
+      };
+    },
   ) {
-    // Wire extension UI to forward requests to all connected WS clients
+    // Wire extension UI forwarding to all WS clients
     extensionUI.onUIRequest = (request) => {
-      this.broadcast(request);
+      this.broadcast({ type: "extension_ui_request", ...request });
     };
   }
 
-  /**
-   * Start the WebSocket server on the given HTTP server.
-   */
-  start(server: any): void {
+  start(server: Server): void {
     this.wss = new WebSocketServer({ server });
 
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
@@ -63,13 +65,46 @@ export class WsTransport {
     this.logger.info("WebSocket transport ready");
   }
 
-  /**
-   * Stop the WebSocket server.
-   */
   stop(): void {
     if (this.wss) {
       this.wss.close();
       this.wss = null;
+    }
+  }
+
+  private send(ws: WebSocket, data: object, critical = false): boolean {
+    if (ws.readyState !== WebSocket.OPEN) return false;
+    const str = JSON.stringify(data);
+
+    if (
+      !critical &&
+      ws.bufferedAmount > this.config.server.backpressureThreshold
+    )
+      return false;
+    if (ws.bufferedAmount > this.config.server.backpressureCritical) {
+      ws.close(1011, "Backpressure critical");
+      return false;
+    }
+
+    try {
+      ws.send(str);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private broadcast(data: object): void {
+    if (!this.wss) return;
+    const str = JSON.stringify(data);
+    for (const client of this.wss.clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(str);
+        } catch {
+          // ignore per-client errors
+        }
+      }
     }
   }
 
@@ -90,48 +125,24 @@ export class WsTransport {
 
     let handshakeComplete = false;
 
-    const send = (data: object, critical = false): boolean => {
-      if (ws.readyState !== WebSocket.OPEN) return false;
-
-      const str = JSON.stringify(data);
-
-      // Backpressure check
-      if (
-        !critical &&
-        ws.bufferedAmount > this.config.server.backpressureThreshold
-      ) {
-        return false; // dropped
-      }
-
-      if (ws.bufferedAmount > this.config.server.backpressureCritical) {
-        ws.close(1011, "Backpressure critical");
-        return false;
-      }
-
-      try {
-        ws.send(str);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
     ws.on("message", async (raw) => {
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(raw.toString());
       } catch {
-        send(
+        this.send(
+          ws,
           { type: "error", code: "INVALID_JSON", message: "Invalid JSON" },
           true,
         );
         return;
       }
 
+      // ── Handshake ───────────────────────────────────────
       if (!handshakeComplete) {
-        // Expect HelloMessage
         if (msg.type !== "hello") {
-          send(
+          this.send(
+            ws,
             {
               type: "error",
               code: "INVALID_HELLO",
@@ -143,22 +154,21 @@ export class WsTransport {
           return;
         }
 
-        const protoVersion = msg.protocolVersion as number;
-        if (protoVersion !== PROTOCOL_VERSION) {
-          send(
+        if (msg.protocolVersion !== PROTOCOL_VERSION) {
+          this.send(
+            ws,
             {
               type: "error",
               code: "INCOMPATIBLE_PROTOCOL",
-              message: `Protocol version ${protoVersion} not supported (server: ${PROTOCOL_VERSION})`,
+              message: `Protocol ${msg.protocolVersion} unsupported`,
               serverVersion: PROTOCOL_VERSION,
             },
             true,
           );
-          ws.close(1002, "Incompatible protocol version");
+          ws.close(1002, "Incompatible protocol");
           return;
         }
 
-        // Auth
         const remoteAddress = req.socket?.remoteAddress;
         const authResult = await this.authProvider.authenticate({
           transport: "websocket",
@@ -166,7 +176,8 @@ export class WsTransport {
         });
 
         if (!authResult.allowed) {
-          send(
+          this.send(
+            ws,
             { type: "error", code: "AUTH_FAILED", message: authResult.reason },
             true,
           );
@@ -177,8 +188,8 @@ export class WsTransport {
         state.identity = authResult.identity ?? null;
         handshakeComplete = true;
 
-        // Send welcome with full state
-        send(
+        this.send(
+          ws,
           {
             type: "welcome",
             protocolVersion: PROTOCOL_VERSION,
@@ -193,23 +204,88 @@ export class WsTransport {
         return;
       }
 
-      // Steady-state messages
+      // ── Steady-state: commands ───────────────────────────
       switch (msg.type) {
         case "command": {
           const payload = msg.payload as Record<string, unknown> | undefined;
           if (!payload) {
-            send(
+            this.send(
+              ws,
               {
                 type: "error",
                 code: "INVALID_COMMAND",
-                message: "Command payload required",
+                message: "payload required",
               },
               true,
             );
             return;
           }
-          // TODO: Route command to session's Pi process
-          // This requires session context in the command
+
+          // Resolve session
+          const sid = (msg.sessionId as string) || state.sessionId;
+          if (!sid) {
+            this.send(
+              ws,
+              {
+                type: "error",
+                code: "NO_SESSION",
+                message:
+                  "No session selected. Send a command with sessionId or switch_session first.",
+              },
+              true,
+            );
+            return;
+          }
+
+          try {
+            const pi = await this.sessionManager.getProcess(sid);
+            state.sessionId = sid;
+
+            // Create adapter and subscribe events to this client
+            const adapter = new RpcAdapter(pi as any);
+            adapter.onEvent((event) => {
+              // Route extension UI requests through the bridge
+              if (event.type === "extension_ui_request") {
+                const promise = this.extensionUI.handleRequest(event);
+                if (promise) {
+                  promise.then((response) => {
+                    (pi as any).send(response);
+                  });
+                }
+                // Fire-and-forget or dialog — both broadcast to client
+                this.send(ws, { type: "extension_ui_request", ...event });
+                return;
+              }
+
+              // Forward all other events to client
+              this.send(ws, {
+                type: "event",
+                seq: this.seq++,
+                sessionId: sid,
+                payload: event,
+              });
+            });
+
+            const response = await adapter.sendCommand(payload);
+
+            // Forward the actual Pi response to client
+            this.send(ws, {
+              type: "response",
+              seq: this.seq++,
+              sessionId: sid,
+              payload: response,
+            });
+          } catch (err) {
+            this.send(
+              ws,
+              {
+                type: "error",
+                code: "COMMAND_FAILED",
+                message: String(err),
+              },
+              true,
+            );
+          }
           break;
         }
 
@@ -221,15 +297,16 @@ export class WsTransport {
         }
 
         case "ping": {
-          send({ type: "pong" });
+          this.send(ws, { type: "pong" });
           break;
         }
 
         default: {
-          send(
+          this.send(
+            ws,
             {
               type: "error",
-              code: "UNKNOWN_MESSAGE_TYPE",
+              code: "UNKNOWN_MESSAGE",
               message: `Unknown message type: ${msg.type}`,
             },
             true,
@@ -258,23 +335,6 @@ export class WsTransport {
     });
   }
 
-  /**
-   * Send a message to all connected clients (for extension UI broadcasts).
-   */
-  broadcast(data: object): void {
-    if (!this.wss) return;
-    const str = JSON.stringify(data);
-    for (const client of this.wss.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(str);
-        } catch {
-          // Ignore per-client send failures
-        }
-      }
-    }
-  }
-
   private startHeartbeat(ws: WebSocket, state: WSState): void {
     state.lastPongAt = Date.now();
     state.waitingForPong = false;
@@ -288,20 +348,17 @@ export class WsTransport {
         this.stopHeartbeat(state);
         return;
       }
-
       if (state.waitingForPong) {
         this.stopHeartbeat(state);
         ws.close(1001, "Heartbeat timeout");
         return;
       }
-
       state.waitingForPong = true;
       try {
         ws.ping();
       } catch {
         this.stopHeartbeat(state);
       }
-
       state.pongTimeoutTimer = setTimeout(() => {
         if (state.cleanedUp) return;
         if (state.waitingForPong && ws.readyState === WebSocket.OPEN) {
@@ -309,10 +366,8 @@ export class WsTransport {
           ws.close(1001, "Heartbeat timeout");
         }
       }, timeout);
-
       if (state.pongTimeoutTimer.unref) state.pongTimeoutTimer.unref();
     }, interval);
-
     if (state.heartbeatTimer.unref) state.heartbeatTimer.unref();
   }
 
