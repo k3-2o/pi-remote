@@ -53,6 +53,8 @@ export class PiServer {
 
   async start(): Promise<void> {
     this.startTime = Date.now();
+
+    await this.verifyPiInstalled();
     this.authProvider = this.buildAuthProvider();
     this.extensionUI = new ExtensionUIBridge();
 
@@ -138,7 +140,15 @@ export class PiServer {
     );
     this.wsTransport.start(this.httpServer);
 
-    // Listen
+    // Listen — handle port-in-use gracefully
+    this.httpServer.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "EADDRINUSE") {
+        this.logger.error(
+          `Port ${this.config.port} already in use. Stop the existing server first: pi-remote stop`,
+        );
+        process.exit(1);
+      }
+    });
     this.httpServer.listen(this.config.port, this.config.host);
     this.logger.info("Server listening", {
       port: this.config.port,
@@ -256,6 +266,17 @@ export class PiServer {
     }
   }
 
+  private async verifyPiInstalled(): Promise<void> {
+    try {
+      const { execSync } = await import("node:child_process");
+      execSync(`which ${this.config.piCommand}`, { stdio: "pipe" });
+    } catch {
+      this.logger.error(
+        `Pi binary "${this.config.piCommand}" not found. Install Pi first: npm install -g @earendil-works/pi-coding-agent`,
+      );
+      process.exit(1);
+    }
+  }
   static readPidFile(): number | null {
     try {
       if (existsSync(PID_FILE)) {

@@ -232,7 +232,14 @@ async function startServer(cliArgs: string[]): Promise<void> {
     // Keep running until SIGINT/SIGTERM
     await new Promise(() => {});
   } catch (err) {
-    console.error(`Failed to start pi-remote: ${err}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("EADDRINUSE")) {
+      console.error(
+        `Port ${config.port || server.config.port} already in use. Stop the existing server: pi-remote stop`,
+      );
+    } else {
+      console.error(`Failed to start pi-remote: ${msg}`);
+    }
     process.exit(1);
   }
 }

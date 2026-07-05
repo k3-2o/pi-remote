@@ -58,6 +58,9 @@ export class WsTransport {
   start(server: Server): void {
     this.wss = new WebSocketServer({ server });
 
+    // Silently handle server errors (EADDRINUSE handled by HTTP server)
+    this.wss.on("error", () => {});
+
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
     });
