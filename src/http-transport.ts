@@ -128,32 +128,7 @@ export class HttpTransport {
       const pi = await this.sessionManager.getProcess(sessionId);
 
       return streamSSE(c, async (stream) => {
-        this.sessionManager.setStreaming(sessionId, true);
-        const adapter = new RpcAdapter(pi);
-
-        try {
-          adapter.onEvent((event) => {
-            this.sendSSEEvent(stream, event);
-          });
-
-          const response = await adapter.sendCommand({
-            type: "prompt",
-            message: body.message,
-          });
-
-          await stream.writeSSE({
-            event: "done",
-            data: JSON.stringify(response),
-          });
-        } catch (err) {
-          await stream.writeSSE({
-            event: "error",
-            data: JSON.stringify({ error: String(err) }),
-          });
-        } finally {
-          this.sessionManager.setStreaming(sessionId, false);
-          this.sessionManager.incrementMessages(sessionId);
-        }
+        await this.handleChatStream(stream, pi, body.message!, sessionId);
       });
     });
 
@@ -170,32 +145,7 @@ export class HttpTransport {
       const pi = await this.sessionManager.getProcess(sessionId);
 
       return streamSSE(c, async (stream) => {
-        this.sessionManager.setStreaming(sessionId, true);
-        const adapter = new RpcAdapter(pi);
-
-        try {
-          adapter.onEvent((event) => {
-            this.sendSSEEvent(stream, event);
-          });
-
-          const response = await adapter.sendCommand({
-            type: "prompt",
-            message: body.message,
-          });
-
-          await stream.writeSSE({
-            event: "done",
-            data: JSON.stringify(response),
-          });
-        } catch (err) {
-          await stream.writeSSE({
-            event: "error",
-            data: JSON.stringify({ error: String(err) }),
-          });
-        } finally {
-          this.sessionManager.setStreaming(sessionId, false);
-          this.sessionManager.incrementMessages(sessionId);
-        }
+        await this.handleChatStream(stream, pi, body.message!, sessionId);
       });
     });
 
@@ -295,6 +245,49 @@ export class HttpTransport {
     stream
       .writeSSE({ event: type, data: JSON.stringify(event) })
       .catch(() => {});
+  }
+
+  /**
+   * Shared chat stream logic — waits for agent_end before finishing.
+   * Pi's RPC prompt response is just acceptance; events stream after.
+   */
+  private async handleChatStream(
+    stream: SSEStreamingApi,
+    pi: any,
+    message: string,
+    sessionId: string,
+  ): Promise<void> {
+    this.sessionManager.setStreaming(sessionId, true);
+    const adapter = new RpcAdapter(pi);
+
+    try {
+      const done = new Promise<void>((resolve) => {
+        adapter.onEvent((event) => {
+          this.sendSSEEvent(stream, event);
+          if (event.type === "agent_end") resolve();
+        });
+      });
+
+      const timeout = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error("Chat timeout")), 120_000);
+      });
+
+      await adapter.sendCommand({ type: "prompt", message });
+      await Promise.race([done, timeout]);
+
+      await stream.writeSSE({
+        event: "done",
+        data: JSON.stringify({}),
+      });
+    } catch (err) {
+      await stream.writeSSE({
+        event: "error",
+        data: JSON.stringify({ error: String(err) }),
+      });
+    } finally {
+      this.sessionManager.setStreaming(sessionId, false);
+      this.sessionManager.incrementMessages(sessionId);
+    }
   }
 
   /**
