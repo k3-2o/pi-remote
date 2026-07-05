@@ -20,6 +20,7 @@ export interface SessionInfo {
   isStreaming: boolean;
   messageCount: number;
   createdAt: string;
+  active?: boolean; // false = completed one-shot, record kept for history
 }
 
 // ============================================================================

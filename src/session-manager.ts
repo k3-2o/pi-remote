@@ -20,6 +20,7 @@ export interface SessionRecord {
   messageCount: number;
   isStreaming: boolean;
   sessionName?: string;
+  active: boolean; // false = Pi process freed, record kept for history
 }
 
 export class SessionManager {
@@ -51,6 +52,7 @@ export class SessionManager {
       lastActivity: new Date(),
       messageCount: 0,
       isStreaming: false,
+      active: true,
     };
 
     this.sessions.set(id, record);
@@ -99,7 +101,24 @@ export class SessionManager {
   }
 
   /**
-   * Delete a session.
+   * Deactivate a session — stop its Pi process but keep the record.
+   * Used for one-shot chats: free resources, preserve history.
+   */
+  async deactivate(sessionId: string): Promise<void> {
+    if (!this.sessions.has(sessionId)) return;
+
+    // Mark as not streaming, stop Pi process
+    const record = this.sessions.get(sessionId)!;
+    record.isStreaming = false;
+    record.active = false;
+    await this.processManager.remove(sessionId);
+    this.logger.info("Session deactivated (process freed, record kept)", {
+      sessionId,
+    });
+  }
+
+  /**
+   * Delete a session — stops process AND removes record.
    */
   async delete(sessionId: string): Promise<void> {
     if (!this.sessions.has(sessionId)) {
@@ -164,6 +183,7 @@ export class SessionManager {
       isStreaming: record.isStreaming,
       messageCount: record.messageCount,
       createdAt: record.createdAt.toISOString(),
+      active: record.active,
       thinkingLevel: "medium",
     };
   }

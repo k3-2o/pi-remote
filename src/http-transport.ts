@@ -303,11 +303,10 @@ export class HttpTransport {
       this.sessionManager.setStreaming(sessionId, false);
       this.sessionManager.incrementMessages(sessionId);
 
-      // One-shot chat: clean up immediately after response
+      // One-shot chat: free Pi process but keep session record
       if (temporary) {
-        this.logger.info("Cleaning up temp session", { sessionId });
-        this.sessionManager.delete(sessionId).catch((err) => {
-          this.logger.error("Failed to clean up temp session", {
+        this.sessionManager.deactivate(sessionId).catch((err) => {
+          this.logger.error("Failed to deactivate temp session", {
             sessionId,
             error: String(err),
           });
