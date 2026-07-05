@@ -34,6 +34,7 @@ USAGE
   pi-remote status         Check if the server is running
   pi-remote relay          Direct stdin/stdout relay (debug mode)
   pi-remote install        Install as systemd service (auto-start on boot)
+  pi-remote uninstall      Remove systemd service (stop + disable + delete unit)
   pi-remote logs           Tail the event log (~/.pi/pi-remote/events.jsonl)
   pi-remote --version      Print version
   pi-remote --help         Print this help
@@ -152,6 +153,12 @@ EXAMPLES
   // ── Install (systemd) ──────────────────────────────────
   if (command === "install") {
     await runInstall(args.slice(1));
+    return;
+  }
+
+  // ── Uninstall (systemd) ────────────────────────────────
+  if (command === "uninstall") {
+    await runUninstall();
     return;
   }
 
@@ -379,6 +386,38 @@ async function runLogs(): Promise<void> {
   }, 1000);
 
   await new Promise(() => {}); // keep alive until Ctrl+C
+}
+
+/**
+ * Remove pi-remote systemd service.
+ */
+async function runUninstall(): Promise<void> {
+  const { execSync } = await import("node:child_process");
+  const { existsSync, unlinkSync } = await import("node:fs");
+  const unitPath = "/etc/systemd/system/pi-remote.service";
+
+  if (!existsSync(unitPath)) {
+    console.log("pi-remote systemd service not found. Nothing to uninstall.");
+    process.exit(0);
+  }
+
+  try {
+    execSync("systemctl stop pi-remote", { stdio: "inherit" });
+    execSync("systemctl disable pi-remote", { stdio: "inherit" });
+  } catch {
+    /* already stopped or disabled */
+  }
+
+  try {
+    unlinkSync(unitPath);
+    execSync("systemctl daemon-reload", { stdio: "inherit" });
+    console.log("pi-remote uninstalled.");
+    console.log(`  Removed ${unitPath}`);
+    console.log(`  Run 'pi-remote install' to reinstall.`);
+  } catch (err) {
+    console.error(`Cannot remove ${unitPath} — try: sudo pi-remote uninstall`);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {
