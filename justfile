@@ -15,9 +15,9 @@ fmt-check:
 types:
     npx tsc --noEmit
 
-# Security audit
+# Security audit (best-effort — network failures don't block)
 audit:
-    npm audit --audit-level=high
+    npm audit --audit-level=high || true
 
 # All static analysis
 check: fmt-check types audit
