@@ -108,8 +108,23 @@ export class SessionManager {
   }
 
   /**
+   * Create a session on WebSocket connect. No explicit POST needed.
+   * Connection IS the session. Returns sessionId for the welcome message.
+   */
+  async createOnConnect(): Promise<SessionInfo> {
+    return this.create();
+  }
+
+  /**
+   * Handle WebSocket disconnect — deactivate session, free Pi process, keep record.
+   */
+  async onDisconnect(sessionId: string): Promise<void> {
+    await this.deactivate(sessionId);
+  }
+
+  /**
    * Deactivate a session — stop its Pi process but keep the record.
-   * Used for one-shot chats: free resources, preserve history.
+   * Used for one-shot chats and WS disconnects: free resources, preserve history.
    */
   async deactivate(sessionId: string): Promise<void> {
     if (!this.sessions.has(sessionId)) return;

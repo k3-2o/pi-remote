@@ -1,19 +1,24 @@
 /**
- * HTTP Transport — exposes pi-remote's API over HTTP/1.1 with SSE streaming.
+ * HTTP Transport — SUGAR LAYER over pi-remote's WebSocket-first protocol.
+ *
+ * AI is a conversation, not a transaction. WebSocket is the real protocol.
+ * HTTP exists for curl, webhooks, cron, CI — the 10% of tasks that are fire-and-forget.
+ *
+ * Limitation: extension_ui_request events are DROPPED here (HTTP can't do bidirectional).
+ * Use WebSocket if your agent needs to ask questions back (select, confirm, input dialogs).
  *
  * Built on Hono (lightweight, fast, TypeScript-native).
  *
  * Endpoints:
- *  POST /v1/chat              → send prompt, stream response (SSE)
- *  POST /v1/sessions          → create session
- *  GET  /v1/sessions          → list sessions
- *  GET  /v1/sessions/:id      → get session info
- *  DELETE /v1/sessions/:id    → delete session
- *  POST /v1/sessions/:id/chat → chat in specific session
- *  POST /v1/sessions/:id/abort → abort running task
  *  GET  /v1/health            → health check
  *  GET  /v1/version           → version info
- *  GET  /v1/logs              → tail logs
+ *  POST /v1/chat              → fire-and-forget prompt, SSE stream back
+ *  GET  /v1/sessions          → list sessions (dashboard/monitoring)
+ *  POST /v1/sessions          → create session (convenience, WS auto-creates)
+ *  GET  /v1/sessions/:id      → get session info
+ *  DELETE /v1/sessions/:id    → delete session
+ *  POST /v1/sessions/:id/chat → chat in existing session (convenience)
+ *  POST /v1/sessions/:id/abort → abort running task (convenience)
  */
 
 import { Hono } from "hono";

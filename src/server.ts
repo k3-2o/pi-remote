@@ -1,5 +1,11 @@
 /**
- * PiServer — HTTP + WebSocket on same port, with extension UI relay.
+ * PiServer — WebSocket-first server runtime for Pi Coding Agent.
+ *
+ * Architecture:
+ *   WebSocket (PRIMARY)  → connection = session, commands → Pi, events ← client
+ *   HTTP (SUGAR)         → /v1/health, /v1/version, /v1/chat (SSE), sessions list
+ *
+ * Both share a single port. WS is the real protocol. HTTP is convenience.
  */
 import { createServer } from "node:http";
 import type { Server } from "node:http";
@@ -51,6 +57,12 @@ export class PiServer {
     });
   }
 
+  /**
+   * Start the server.
+   *
+   * WebSocket is the primary interface. HTTP mounts as a convenience
+   * layer on the same port. Sessions are auto-created on WS connect.
+   */
   async start(): Promise<void> {
     this.startTime = Date.now();
 
@@ -58,6 +70,7 @@ export class PiServer {
     this.authProvider = this.buildAuthProvider();
     this.extensionUI = new ExtensionUIBridge();
 
+    // ── Process pool (transport-agnostic) ─────────────────
     this.processManager = new PiProcessManager({
       logger: this.logger,
       piOptions: {
@@ -78,16 +91,16 @@ export class PiServer {
     // Check Pi version compatibility
     await this.checkPiVersion();
 
+    // ── HTTP sugar layer ──────────────────────────────────
     this.httpTransport = new HttpTransport(
       this.sessionManager,
       this.authProvider,
       this.logger,
     );
 
-    // Create raw Node http.Server — WS-compatible
+    // ── Create raw Node http.Server (shared by HTTP + WS) ─
     this.httpServer = createServer(async (req, res) => {
       const app = this.httpTransport.getApp();
-      // Build a Web Request from the Node request
       const url = `http://${req.headers.host ?? "localhost"}${req.url}`;
       const headers = new Headers();
       for (const [k, v] of Object.entries(req.headers)) {
@@ -130,7 +143,9 @@ export class PiServer {
       }
     });
 
-    // WebSocket on same server
+    // ── WebSocket (PRIMARY interface) ─────────────────────
+    // WS is the real protocol. AI is a conversation, not a transaction.
+    // Sessions are auto-created on connect. Extension UI flows bidirectionally.
     this.wsTransport = new WsTransport(
       this.sessionManager,
       this.extensionUI,
@@ -140,7 +155,7 @@ export class PiServer {
     );
     this.wsTransport.start(this.httpServer);
 
-    // Listen — handle port-in-use gracefully
+    // ── Listen ────────────────────────────────────────────
     this.httpServer.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
         this.logger.error(
@@ -150,9 +165,13 @@ export class PiServer {
       }
     });
     this.httpServer.listen(this.config.port, this.config.host);
-    this.logger.info("Server listening", {
+
+    this.logger.info("pi-remote started", {
       port: this.config.port,
       host: this.config.host,
+      primaryTransport: "websocket",
+      sugarTransport: "http (health, version, chat SSE, sessions list)",
+      protocolVersion: 1,
     });
 
     this.writePidFile();
@@ -180,11 +199,17 @@ export class PiServer {
   get url(): string {
     return `http://${this.config.host}:${this.config.port}`;
   }
+  get wsUrl(): string {
+    return `ws://${this.config.host}:${this.config.port}`;
+  }
   get uptime(): number {
     return this.startTime ? (Date.now() - this.startTime) / 1000 : 0;
   }
   get isRunning(): boolean {
     return this.httpServer !== null;
+  }
+  get connectedClients(): number {
+    return this.wsTransport?.connectedClients ?? 0;
   }
 
   private buildAuthProvider(): AuthProvider {
@@ -227,10 +252,6 @@ export class PiServer {
     process.exit(0);
   }
 
-  /**
-   * Check Pi version against last known good version.
-   * Warns if changed — Pi RPC protocol may have changed.
-   */
   private async checkPiVersion(): Promise<void> {
     try {
       const { execSync } = await import("node:child_process");
@@ -277,6 +298,7 @@ export class PiServer {
       process.exit(1);
     }
   }
+
   static readPidFile(): number | null {
     try {
       if (existsSync(PID_FILE)) {
