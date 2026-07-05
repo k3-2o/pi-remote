@@ -56,6 +56,7 @@ class PiRemote:
                     result["tool_calls"].append(call)
                     if on_tool: on_tool(call)
                 elif current_event == "done":
+                    result["session_id"] = data.get("sessionId")
                     break
 
         sys.stdout.write("\n"); sys.stdout.flush()

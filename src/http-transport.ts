@@ -122,13 +122,21 @@ export class HttpTransport {
         return c.json({ error: "message is required" }, 400);
       }
 
+      // If sessionId provided, reuse it. Otherwise one-shot: temp session, clean up after.
+      const hasExplicitSession = !!body.sessionId;
       const { sessionId } = await this.sessionManager.getOrCreate(
         body.sessionId,
       );
       const pi = await this.sessionManager.getProcess(sessionId);
 
       return streamSSE(c, async (stream) => {
-        await this.handleChatStream(stream, pi, body.message!, sessionId);
+        await this.handleChatStream(
+          stream,
+          pi,
+          body.message!,
+          sessionId,
+          !hasExplicitSession,
+        );
       });
     });
 
@@ -145,7 +153,13 @@ export class HttpTransport {
       const pi = await this.sessionManager.getProcess(sessionId);
 
       return streamSSE(c, async (stream) => {
-        await this.handleChatStream(stream, pi, body.message!, sessionId);
+        await this.handleChatStream(
+          stream,
+          pi,
+          body.message!,
+          sessionId,
+          false,
+        ); // explicit session, keep alive
       });
     });
 
@@ -256,6 +270,7 @@ export class HttpTransport {
     pi: any,
     message: string,
     sessionId: string,
+    temporary = false,
   ): Promise<void> {
     this.sessionManager.setStreaming(sessionId, true);
     const adapter = new RpcAdapter(pi);
@@ -277,7 +292,7 @@ export class HttpTransport {
 
       await stream.writeSSE({
         event: "done",
-        data: JSON.stringify({}),
+        data: JSON.stringify({ sessionId }),
       });
     } catch (err) {
       await stream.writeSSE({
@@ -287,6 +302,11 @@ export class HttpTransport {
     } finally {
       this.sessionManager.setStreaming(sessionId, false);
       this.sessionManager.incrementMessages(sessionId);
+
+      // One-shot chat: clean up immediately after response
+      if (temporary) {
+        this.sessionManager.delete(sessionId).catch(() => {});
+      }
     }
   }
 

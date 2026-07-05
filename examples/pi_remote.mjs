@@ -68,6 +68,7 @@ class PiRemote {
           result.toolCalls.push({ name: data.tool, args: data.args });
           onTool?.({ name: data.tool, args: data.args });
         } else if (line.startsWith("data: ") && currentEvent === "done") {
+          result.sessionId = JSON.parse(line.slice(6)).sessionId;
           finished = true;
           break;
         }
