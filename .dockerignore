@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vscode/
+.git/
+tests/
+examples/
+*.md
+!README.md
