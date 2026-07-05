@@ -22,6 +22,7 @@ import type { SessionManager } from "./session-manager.js";
 import { RpcAdapter } from "./rpc-adapter.js";
 import type { AuthProvider } from "./auth.js";
 import type { Logger } from "./logger.js";
+import { EventLog } from "./event-log.js";
 
 export class HttpTransport {
   private app: Hono;
@@ -274,6 +275,12 @@ export class HttpTransport {
   ): Promise<void> {
     this.sessionManager.setStreaming(sessionId, true);
     const adapter = new RpcAdapter(pi);
+
+    EventLog.append({
+      event: "chat_start",
+      sessionId,
+      message: message.slice(0, 200),
+    });
 
     try {
       const done = new Promise<void>((resolve) => {

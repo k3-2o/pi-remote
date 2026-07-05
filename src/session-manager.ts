@@ -12,6 +12,7 @@ import type { PiProcess } from "./pi-process.js";
 import type { Logger } from "./logger.js";
 import type { SessionInfo } from "./types.js";
 import { SessionNotFoundError } from "./errors.js";
+import { EventLog } from "./event-log.js";
 
 export interface SessionRecord {
   sessionId: string;
@@ -56,6 +57,12 @@ export class SessionManager {
     };
 
     this.sessions.set(id, record);
+
+    EventLog.append({
+      event: "session_created",
+      sessionId: id,
+      messageCount: 0,
+    });
 
     this.logger.info("Session created", { sessionId: id });
 
@@ -112,6 +119,7 @@ export class SessionManager {
     record.isStreaming = false;
     record.active = false;
     await this.processManager.remove(sessionId);
+    EventLog.append({ event: "session_deactivated", sessionId });
     this.logger.info("Session deactivated (process freed, record kept)", {
       sessionId,
     });
@@ -127,6 +135,8 @@ export class SessionManager {
 
     this.sessions.delete(sessionId);
     await this.processManager.remove(sessionId);
+
+    EventLog.append({ event: "session_deleted", sessionId });
 
     this.logger.info("Session deleted", { sessionId });
   }

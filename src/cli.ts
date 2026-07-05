@@ -34,6 +34,7 @@ USAGE
   pi-remote status         Check if the server is running
   pi-remote relay          Direct stdin/stdout relay (debug mode)
   pi-remote install        Install as systemd service (auto-start on boot)
+  pi-remote logs           Tail the event log (~/.pi/pi-remote/events.jsonl)
   pi-remote --version      Print version
   pi-remote --help         Print this help
 
@@ -151,6 +152,12 @@ EXAMPLES
   // ── Install (systemd) ──────────────────────────────────
   if (command === "install") {
     await runInstall(args.slice(1));
+    return;
+  }
+
+  // ── Logs (tail events.jsonl) ────────────────────────────
+  if (command === "logs") {
+    await runLogs();
     return;
   }
 
@@ -343,6 +350,35 @@ WantedBy=multi-user.target
     console.error(`  sudo systemctl enable --now pi-remote`);
     process.exit(1);
   }
+}
+
+/**
+ * Tail the event log.
+ */
+async function runLogs(): Promise<void> {
+  const { EventLog } = await import("./event-log.js");
+  const { existsSync } = await import("node:fs");
+
+  if (!existsSync(EventLog.path)) {
+    console.error("No events yet. Start pi-remote first.");
+    process.exit(0);
+  }
+
+  // Print last 30 lines
+  const lines = EventLog.tail(30);
+  for (const line of lines) console.log(line);
+
+  // Poll for new lines every second (cross-platform, no dependencies)
+  let lastSize = lines.length;
+  setInterval(() => {
+    const current = EventLog.tail(0);
+    if (current.length > lastSize) {
+      for (let i = lastSize; i < current.length; i++) console.log(current[i]);
+      lastSize = current.length;
+    }
+  }, 1000);
+
+  await new Promise(() => {}); // keep alive until Ctrl+C
 }
 
 main().catch((err) => {
