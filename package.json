@@ -1,0 +1,51 @@
+{
+  "name": "pi-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A thin server runtime for Pi Coding Agent — HTTP/WebSocket wrapper around pi --mode rpc",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "pi-server": "dist/cli.js"
+  },
+  "exports": {
+    "./*": "./dist/*.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "build:types": "tsc --emitDeclarationOnly",
+    "start": "node dist/cli.js",
+    "dev": "node --watch --experimental-strip-types src/cli.ts"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "server",
+    "rpc",
+    "websocket",
+    "coding-agent"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.8",
+    "hono": "^4.12.27",
+    "nanoid": "^5.1.16",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "esbuild": "^0.25.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}
