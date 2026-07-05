@@ -73,6 +73,9 @@ export class PiServer {
     });
     if (this.config.sessionTimeout > 0) this.processManager.startIdleCheck();
 
+    // Check Pi version compatibility
+    await this.checkPiVersion();
+
     this.httpTransport = new HttpTransport(
       this.sessionManager,
       this.authProvider,
@@ -212,6 +215,45 @@ export class PiServer {
     await this.stop();
     clearTimeout(timer);
     process.exit(0);
+  }
+
+  /**
+   * Check Pi version against last known good version.
+   * Warns if changed — Pi RPC protocol may have changed.
+   */
+  private async checkPiVersion(): Promise<void> {
+    try {
+      const { execSync } = await import("node:child_process");
+      const { readFileSync, writeFileSync, existsSync, mkdirSync } =
+        await import("node:fs");
+      const { homedir } = await import("node:os");
+      const { resolve } = await import("node:path");
+
+      const current = execSync(`${this.config.piCommand} --version`, {
+        encoding: "utf8",
+        timeout: 5000,
+      }).trim();
+
+      const versionDir = resolve(homedir(), ".pi", "pi-remote");
+      const versionFile = resolve(versionDir, "pi-version");
+
+      if (!existsSync(versionDir)) mkdirSync(versionDir, { recursive: true });
+
+      if (existsSync(versionFile)) {
+        const last = readFileSync(versionFile, "utf8").trim();
+        if (last !== current) {
+          this.logger.warn("Pi version changed", { lastKnown: last, current });
+          this.logger.warn(
+            "pi-remote was tested with the previous version. If something breaks, this may be why.",
+          );
+        }
+      }
+
+      writeFileSync(versionFile, current, "utf8");
+      this.logger.info("Pi version", { version: current });
+    } catch (err) {
+      this.logger.warn("Could not check Pi version", { error: String(err) });
+    }
   }
 
   static readPidFile(): number | null {
