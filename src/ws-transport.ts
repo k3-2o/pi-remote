@@ -290,6 +290,7 @@ export class WsTransport {
 
     if (state.sessionId) {
       const sid = state.sessionId;
+      this.sessionCreatedAt.delete(sid);
       this.sessionManager
         .onDisconnect(sid)
         .then(() => {

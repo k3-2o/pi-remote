@@ -59,8 +59,8 @@ export class PiProcessManager {
 
     // Check limit
     if (this.processes.size >= this.maxProcesses) {
-      // Try to evict the oldest idle process
-      this.evictOldestIdle();
+      // Try to evict the oldest process (panic-eviction)
+      this.evictOldest();
     }
 
     if (this.processes.size >= this.maxProcesses) {
@@ -227,9 +227,11 @@ export class PiProcessManager {
   }
 
   /**
-   * Evict the oldest idle process to make room for a new one.
+   * Evict the oldest process to free a slot when the pool is full.
+   * Picks the process with the oldest lastActivity — panic-eviction, not idle-specific.
+   * The idle check (checkIdle) handles timeout-based cleanup separately.
    */
-  private evictOldestIdle(): void {
+  private evictOldest(): void {
     let oldest: { sessionId: string; lastActivity: number } | null = null;
 
     for (const [sessionId, managed] of this.processes) {

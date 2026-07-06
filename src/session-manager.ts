@@ -192,9 +192,20 @@ export class SessionManager {
   }
 
   /**
-   * Get total number of running sessions.
+   * Get number of active sessions (Pi process running).
    */
   get count(): number {
+    let n = 0;
+    for (const r of this.sessions.values()) {
+      if (r.active) n++;
+    }
+    return n;
+  }
+
+  /**
+   * Get total sessions including deactivated one-shots.
+   */
+  get totalCount(): number {
     return this.sessions.size;
   }
 
