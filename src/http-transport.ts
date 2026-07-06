@@ -73,13 +73,13 @@ export class HttpTransport {
         status: "ok",
         uptime: process.uptime(),
         sessions: this.sessionManager.count,
-        version: "0.1.0",
+        version: "0.2.1",
       });
     });
 
     this.app.get("/v1/version", (c) => {
       return c.json({
-        version: "0.1.0",
+        version: "0.2.1",
         protocol: "1.0.0",
       });
     });

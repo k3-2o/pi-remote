@@ -1,6 +1,6 @@
 {
-  "name": "pi-remote",
-  "version": "0.2.0",
+  "name": "@k3_2o/pi-remote",
+  "version": "0.2.1",
   "description": "A thin server runtime for Pi Coding Agent — WebSocket-first, HTTP as sugar. Turns pi --mode rpc into a network service.",
   "type": "module",
   "main": "dist/cli.js",
@@ -12,6 +12,17 @@
     "./client": "./dist/pi_remote_ws.mjs",
     "./*": "./dist/*.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/k3-2o/pi-remote.git"
+  },
+  "bugs": {
+    "url": "https://github.com/k3-2o/pi-remote/issues"
+  },
+  "homepage": "https://github.com/k3-2o/pi-remote#readme",
   "scripts": {
     "build": "node build.mjs",
     "build:types": "tsc --emitDeclarationOnly",

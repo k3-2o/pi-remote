@@ -140,7 +140,7 @@ describe("WebSocket Handshake", () => {
 
     expect(welcome.type).toBe("welcome");
     expect(welcome.protocolVersion).toBe(1);
-    expect(welcome.serverVersion).toBe("0.2.0");
+    expect(welcome.serverVersion).toBe("0.2.1");
     expect(welcome.sessionId).toBeTruthy();
     expect(typeof welcome.sessionId).toBe("string");
     expect(welcome.sessionId.length).toBeGreaterThan(10);
@@ -214,13 +214,13 @@ describe("WS-Native Commands", () => {
     expect(typeof resp.payload.uptime).toBe("number");
     expect(typeof resp.payload.sessions).toBe("number");
     expect(typeof resp.payload.wsClients).toBe("number");
-    expect(resp.payload.version).toBe("0.2.0");
+    expect(resp.payload.version).toBe("0.2.1");
   });
 
   it("get_version returns version info", async () => {
     const resp = await sendCommand(ws, { type: "get_version" });
     expect(resp.type).toBe("response");
-    expect(resp.payload.version).toBe("0.2.0");
+    expect(resp.payload.version).toBe("0.2.1");
     expect(resp.payload.protocol).toBeTruthy();
   });
 
@@ -302,17 +302,25 @@ describe("Session-Scoped Commands", () => {
     },
   );
 
-  it("get_available_models returns model list from Pi", { timeout: 25_000 }, async () => {
-    const resp = await sendCommand(ws, { type: "get_available_models" });
-    expect(resp.type).toBe("response");
-    expect(resp.payload).toBeDefined();
-  });
+  it(
+    "get_available_models returns model list from Pi",
+    { timeout: 25_000 },
+    async () => {
+      const resp = await sendCommand(ws, { type: "get_available_models" });
+      expect(resp.type).toBe("response");
+      expect(resp.payload).toBeDefined();
+    },
+  );
 
-  it("get_commands returns available command list", { timeout: 35_000 }, async () => {
-    const resp = await sendCommand(ws, { type: "get_commands" }, 30_000);
-    expect(resp.type).toBe("response");
-    expect(resp.payload).toBeDefined();
-  });
+  it(
+    "get_commands returns available command list",
+    { timeout: 35_000 },
+    async () => {
+      const resp = await sendCommand(ws, { type: "get_commands" }, 30_000);
+      expect(resp.type).toBe("response");
+      expect(resp.payload).toBeDefined();
+    },
+  );
 
   it(
     "rejects unknown command type with error",

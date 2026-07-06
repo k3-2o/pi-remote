@@ -15,7 +15,7 @@ A step-by-step guide from zero to your first Pi chat over the network.
 ## 1. Install pi-remote
 
 ```bash
-npm install -g pi-remote
+npm install -g @k3_2o/pi-remote
 ```
 
 Verify it installed:
@@ -66,7 +66,7 @@ Or with curl:
 
 ```bash
 curl http://localhost:8080/v1/health
-# → {"status":"ok","uptime":12.4,"sessions":0,"version":"0.1.0"}
+# → {"status":"ok","uptime":12.4,"sessions":0,"version":"0.2.1"}
 ```
 
 ---
@@ -86,11 +86,11 @@ You'll see SSE events stream by — `token` events with text chunks, then a `don
 **With the JavaScript SDK:**
 
 ```bash
-npm install pi-remote
+npm install @k3_2o/pi-remote
 ```
 
 ```js
-import { PiRemoteWS } from "pi-remote/client";
+import { PiRemoteWS } from "@k3_2o/pi-remote/client";
 
 const client = new PiRemoteWS("ws://localhost:8080");
 await client.connect();

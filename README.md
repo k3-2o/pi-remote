@@ -3,7 +3,7 @@
 > WebSocket-first server runtime for Pi Coding Agent. Start it once, talk to Pi from anywhere.
 
 ```bash
-npm install -g pi-remote
+npm install -g @k3_2o/pi-remote
 pi-remote start
 curl -X POST http://localhost:8080/v1/chat -H "Content-Type: application/json" -d '{"message":"say hello"}'
 ```
@@ -28,7 +28,7 @@ pi-remote is a thin server that turns Pi's RPC mode into a network service. It h
 ## Quick Start
 
 ```bash
-npm install -g pi-remote       # you also need Pi: npm install -g @earendil-works/pi-coding-agent
+npm install -g @k3_2o/pi-remote       # you also need Pi: npm install -g @earendil-works/pi-coding-agent
 pi-remote start                # server on :8080
 pi-remote health               # check it's alive
 pi-remote sessions             # list sessions

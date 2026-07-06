@@ -243,7 +243,7 @@ export class WsTransport {
           {
             type: "welcome",
             protocolVersion: PROTOCOL_VERSION,
-            serverVersion: "0.2.0",
+            serverVersion: "0.2.1",
             sessionId: session.sessionId,
             sessions: this.sessionManager.list(),
             currentSeq: this.seq,
@@ -372,7 +372,7 @@ export class WsTransport {
               uptime: process.uptime(),
               sessions: this.sessionManager.count,
               wsClients: this.connectedClients,
-              version: "0.2.0",
+              version: "0.2.1",
             },
           });
           return;
@@ -383,7 +383,7 @@ export class WsTransport {
             type: "response",
             requestId,
             seq: this.seq++,
-            payload: { version: "0.2.0", protocol: `${PROTOCOL_VERSION}.0.0` },
+            payload: { version: "0.2.1", protocol: `${PROTOCOL_VERSION}.0.0` },
           });
           return;
         }

@@ -29,7 +29,9 @@ function check(name, condition, detail = "") {
 }
 
 // Clean up
-try { if (existsSync(PID_FILE)) unlinkSync(PID_FILE); } catch {}
+try {
+  if (existsSync(PID_FILE)) unlinkSync(PID_FILE);
+} catch {}
 
 // Start server
 console.log("Starting pi-remote...");
@@ -45,7 +47,15 @@ try {
   console.log(`Connected. Session: ${client.sessionId}\n`);
 
   // ── Collect events ────────────────────────────────────
-  const events = { token: [], thinking: [], tool_start: [], tool_output: [], tool_end: [], agent_end: 0, ext_ui: [] };
+  const events = {
+    token: [],
+    thinking: [],
+    tool_start: [],
+    tool_output: [],
+    tool_end: [],
+    agent_end: 0,
+    ext_ui: [],
+  };
 
   client.on("token", (t) => events.token.push(t));
   client.on("thinking", (t) => events.thinking.push(t));
@@ -61,11 +71,23 @@ try {
   console.log("--- Results ---");
 
   // token
-  check("token events fired", events.token.length > 0, `${events.token.length} tokens`);
-  check("token text accumulated", result.text.length > 0, `${result.text.length} chars`);
+  check(
+    "token events fired",
+    events.token.length > 0,
+    `${events.token.length} tokens`,
+  );
+  check(
+    "token text accumulated",
+    result.text.length > 0,
+    `${result.text.length} chars`,
+  );
 
   // tool_start
-  check("tool_start fired", events.tool_start.length > 0, `${events.tool_start.length} tool(s)`);
+  check(
+    "tool_start fired",
+    events.tool_start.length > 0,
+    `${events.tool_start.length} tool(s)`,
+  );
   if (events.tool_start.length > 0) {
     const t = events.tool_start[0];
     check("tool_start has tool name", !!t.tool, t.tool);
@@ -73,7 +95,11 @@ try {
   }
 
   // tool_end
-  check("tool_end fired", events.tool_end.length > 0, `${events.tool_end.length} tool(s)`);
+  check(
+    "tool_end fired",
+    events.tool_end.length > 0,
+    `${events.tool_end.length} tool(s)`,
+  );
   if (events.tool_end.length > 0) {
     const t = events.tool_end[0];
     check("tool_end has result", t.result !== undefined);
@@ -95,14 +121,15 @@ try {
   }
 
   client.close();
-
 } catch (err) {
   console.error("FATAL:", err.message);
   failed++;
 } finally {
   server.kill("SIGTERM");
   await sleep(500);
-  try { server.kill("SIGKILL"); } catch {}
+  try {
+    server.kill("SIGKILL");
+  } catch {}
 }
 
 // ── Summary ───────────────────────────────────────────────

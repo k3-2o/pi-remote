@@ -16,7 +16,7 @@ import { PiProcess } from "./pi-process.js";
 import { loadConfig } from "./config.js";
 import { ConsoleLogger } from "./logger.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -485,7 +485,9 @@ async function runHealthCheck(cliArgs: string[]): Promise<void> {
     const hours = Math.floor(uptime / 3600);
     const minutes = Math.floor((uptime % 3600) / 60);
     const uptimeStr =
-      hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${Math.floor(uptime % 60)}s`;
+      hours > 0
+        ? `${hours}h ${minutes}m`
+        : `${minutes}m ${Math.floor(uptime % 60)}s`;
 
     console.log(`pi-remote v${data.version}`);
     console.log(`  Status:    ${data.status}`);
@@ -522,7 +524,9 @@ async function runSessionList(cliArgs: string[]): Promise<void> {
       console.log(`pi-remote is not running (HTTP ${res.status})`);
       process.exit(1);
     }
-    const data = (await res.json()) as { sessions?: Array<Record<string, unknown>> };
+    const data = (await res.json()) as {
+      sessions?: Array<Record<string, unknown>>;
+    };
     const sessions = data.sessions ?? [];
 
     if (sessions.length === 0) {
@@ -539,7 +543,9 @@ async function runSessionList(cliArgs: string[]): Promise<void> {
       const active = s.active ? "active" : "done";
       const id = String(s.sessionId ?? "").slice(0, 16);
       const msgs = String(s.messageCount ?? 0);
-      const created = String(s.createdAt ?? "").replace("T", " ").slice(0, 19);
+      const created = String(s.createdAt ?? "")
+        .replace("T", " ")
+        .slice(0, 19);
       console.log(
         `${id.padEnd(18)} ${active.padEnd(8)} ${msgs.padEnd(4)} msgs  ${created}`,
       );

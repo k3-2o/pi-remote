@@ -8,7 +8,7 @@ pi-remote is a server that listens. It doesn't originate actions, pull events, o
 
 ```js
 // bot.js — run alongside pi-remote
-import { PiRemoteWS } from "pi-remote/client";
+import { PiRemoteWS } from "@k3_2o/pi-remote/client";
 
 const client = new PiRemoteWS("ws://localhost:8080");
 
@@ -91,7 +91,7 @@ HTTP is fine for one-shots. The response is SSE — pipe it to a log file or not
 
 ```js
 // webhook-handler.js
-import { PiRemoteWS } from "pi-remote/client";
+import { PiRemoteWS } from "@k3_2o/pi-remote/client";
 
 app.post("/webhook", async (req, res) => {
   const { action, pull_request } = req.body;

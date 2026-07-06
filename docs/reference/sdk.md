@@ -7,7 +7,7 @@ Two WebSocket clients (JavaScript and Python). Two HTTP clients (sugar layer). A
 ## PiRemoteWS (JavaScript)
 
 ```js
-import { PiRemoteWS } from "pi-remote/client";
+import { PiRemoteWS } from "@k3_2o/pi-remote/client";
 ```
 
 ### Constructor
