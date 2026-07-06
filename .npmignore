@@ -1,0 +1,21 @@
+# Only ship what users need — dist/ + docs
+# The "files" field in package.json is the primary gate.
+# This file is belt-and-suspenders.
+
+src/
+tests/
+examples/
+.vscode/
+node_modules/
+*.tsbuildinfo
+.env
+*.local
+__pycache__/
+justfile
+build.mjs
+tsconfig.json
+vitest.config.ts
+Dockerfile
+.dockerignore
+.gitignore
+.npmignore
