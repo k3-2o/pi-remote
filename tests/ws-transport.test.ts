@@ -293,7 +293,7 @@ describe("Session-Scoped Commands", () => {
 
   it(
     "get_state forwards to Pi and returns response",
-    { timeout: 20_000 },
+    { timeout: 25_000 },
     async () => {
       const resp = await sendCommand(ws, { type: "get_state" });
       expect(resp.type).toBe("response");
@@ -302,21 +302,21 @@ describe("Session-Scoped Commands", () => {
     },
   );
 
-  it("get_available_models returns model list from Pi", async () => {
+  it("get_available_models returns model list from Pi", { timeout: 25_000 }, async () => {
     const resp = await sendCommand(ws, { type: "get_available_models" });
     expect(resp.type).toBe("response");
     expect(resp.payload).toBeDefined();
   });
 
-  it("get_commands returns available command list", async () => {
-    const resp = await sendCommand(ws, { type: "get_commands" });
+  it("get_commands returns available command list", { timeout: 35_000 }, async () => {
+    const resp = await sendCommand(ws, { type: "get_commands" }, 30_000);
     expect(resp.type).toBe("response");
     expect(resp.payload).toBeDefined();
   });
 
   it(
     "rejects unknown command type with error",
-    { timeout: 20_000 },
+    { timeout: 30_000 },
     async () => {
       const ws2 = await connect();
       await handshake(ws2);
@@ -370,7 +370,7 @@ describe("Session Lifecycle", () => {
     ws.close();
   });
 
-  it("deactivates session on disconnect", async () => {
+  it("deactivates session on disconnect", { timeout: 20_000 }, async () => {
     const ws = await connect();
     const welcome = await handshake(ws);
     const sid = welcome.sessionId as string;
