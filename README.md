@@ -41,11 +41,16 @@ pi-remote sessions             # list sessions
 | Document | What's in it |
 |---|---|
 | [Getting Started](docs/getting-started.md) | Install, first chat, daemon mode |
-| [Configuration](docs/configuration.md) | Every config option with defaults |
-| [Protocol](docs/protocol.md) | WebSocket handshake, commands, events, extension UI |
-| [SDK Reference](docs/sdk.md) | JavaScript and Python client API |
-| [Triggers](docs/triggers.md) | Discord bots, cron jobs, webhooks — patterns for connecting anything |
-| [Architecture](docs/architecture.md) | Why WebSocket, process model, emergence, abstraction layer |
+| [Configuration](docs/reference/configuration.md) | Every config option with defaults |
+| [CLI Reference](docs/reference/cli.md) | Every command with options |
+| [Protocol](docs/reference/protocol.md) | WebSocket handshake, commands, events, extension UI |
+| [SDK Reference](docs/reference/sdk.md) | JavaScript and Python client API |
+| [Triggers](docs/how-to/triggers.md) | Discord bots, cron jobs, webhooks — patterns for connecting anything |
+| [Daemon Mode](docs/how-to/daemon-mode.md) | Background, systemd, logs |
+| [Docker](docs/how-to/docker.md) | Run in a container |
+| [Production Setup](docs/how-to/production.md) | TLS, rate limiting, log rotation |
+| [Architecture](docs/explanation/architecture.md) | Why WebSocket, process model |
+| [Emergence](docs/explanation/emergence.md) | How 30+ commands emerged from 2 |
 
 ---
 

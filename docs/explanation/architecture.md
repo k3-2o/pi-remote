@@ -14,6 +14,8 @@ The choice isn't about technical details. It's about not artificially restrictin
 
 HTTP still has its place — cron jobs, simple webhooks. Both transports are here. Neither was removed.
 
+> See [Protocol](../reference/protocol.md) for the full WebSocket specification.
+
 ---
 
 ## Process Model

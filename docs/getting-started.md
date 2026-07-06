@@ -141,7 +141,11 @@ sudo pi-remote uninstall  # remove systemd service
 
 ## Next Steps
 
-- [Configure](configuration.md) port, auth, session limits, reset policies
-- [Connect triggers](triggers.md) — Discord bots, cron jobs, GitHub webhooks
-- [Read the protocol](protocol.md) — full WebSocket command and event reference
-- [Explore the SDK](sdk.md) — all methods, events, and patterns
+- [Configure](reference/configuration.md) port, auth, session limits, reset policies
+- [Connect triggers](how-to/triggers.md) — Discord bots, cron jobs, GitHub webhooks
+- [Run as a daemon](how-to/daemon-mode.md) — background, systemd, logs
+- [Run in Docker](how-to/docker.md) — containerised deployment
+- [Production setup](how-to/production.md) — TLS, rate limiting, log rotation
+- [Read the protocol](reference/protocol.md) — WebSocket commands, events, extension UI
+- [Explore the SDK](reference/sdk.md) — all methods, events, patterns
+- [All CLI commands](reference/cli.md) — every subcommand with options
