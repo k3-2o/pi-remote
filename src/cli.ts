@@ -45,6 +45,13 @@ OPTIONS
   --config <path>          Config file path
   --log-level <level>      Log level: debug, info, warn, error
 
+CONFIG FILE  (~/.config/pi-server/config.json or ~/.pi/pi-server.json)
+  sessionReset.mode        "idle" (default) | "daily" | "none"
+  sessionReset.idleMinutes Minutes of inactivity before reset (default: 30)
+  sessionReset.atHour      Hour for daily reset, 0-23 (default: 4)
+  Env: PI_SERVER_SESSION_RESET_MODE, PI_SERVER_SESSION_RESET_IDLE_MINUTES,
+       PI_SERVER_SESSION_RESET_AT_HOUR
+
 EXAMPLES
   pi-remote start
   pi-remote start --port 9090

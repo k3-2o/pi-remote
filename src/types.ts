@@ -225,13 +225,22 @@ export interface ServerConfig {
   port: number;
   host: string;
   maxSessions: number;
-  sessionTimeout: number; // seconds, 0 = no timeout
+  sessionTimeout: number; // seconds, 0 = never
   logLevel: "debug" | "info" | "warn" | "error";
   piCommand: string;
   piArgs: string[];
   auth: {
     enabled: boolean;
     apiKeys: string[];
+  };
+  /** Session reset policy — prevents context window pileup in long-lived sessions */
+  sessionReset: {
+    /** "idle" = reset after inactivity, "daily" = reset at fixed hour, "none" = never reset */
+    mode: "idle" | "daily" | "none";
+    /** Minutes of inactivity before idle reset. Ignored when mode != "idle". */
+    idleMinutes: number;
+    /** Hour of day (0-23) for daily reset. Ignored when mode != "daily". */
+    atHour: number;
   };
   server: {
     heartbeatInterval: number;
@@ -253,6 +262,11 @@ export const DEFAULT_CONFIG: ServerConfig = {
   auth: {
     enabled: false,
     apiKeys: [],
+  },
+  sessionReset: {
+    mode: "idle",
+    idleMinutes: 30,
+    atHour: 4,
   },
   server: {
     heartbeatInterval: 30000,

@@ -71,6 +71,14 @@ export class PiServer {
     this.extensionUI = new ExtensionUIBridge();
 
     // ── Process pool (transport-agnostic) ─────────────────
+    const resetPolicy = this.config.sessionReset;
+    const idleTimeoutMs =
+      resetPolicy.mode === "none"
+        ? 0
+        : this.config.sessionTimeout > 0
+          ? this.config.sessionTimeout * 1000
+          : resetPolicy.idleMinutes * 60 * 1000;
+
     this.processManager = new PiProcessManager({
       logger: this.logger,
       piOptions: {
@@ -78,15 +86,14 @@ export class PiServer {
         piArgs: this.config.piArgs,
       },
       maxProcesses: this.config.maxSessions,
-      idleTimeoutMs:
-        this.config.sessionTimeout > 0 ? this.config.sessionTimeout * 1000 : 0,
+      idleTimeoutMs,
     });
 
     this.sessionManager = new SessionManager({
       logger: this.logger,
       processManager: this.processManager,
     });
-    if (this.config.sessionTimeout > 0) this.processManager.startIdleCheck();
+    if (idleTimeoutMs > 0) this.processManager.startIdleCheck();
 
     // Check Pi version compatibility
     await this.checkPiVersion();

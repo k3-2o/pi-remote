@@ -83,5 +83,34 @@ export function loadConfig(configPath?: string): ServerConfig {
     config.piCommand = process.env.PI_SERVER_PI_COMMAND;
   }
 
+  // Session reset policy overrides
+  if (process.env.PI_SERVER_SESSION_RESET_MODE) {
+    const mode = process.env.PI_SERVER_SESSION_RESET_MODE;
+    if (!["idle", "daily", "none"].includes(mode)) {
+      throw new ConfigError(
+        `Invalid PI_SERVER_SESSION_RESET_MODE: "${mode}". Must be idle, daily, or none.`,
+      );
+    }
+    config.sessionReset.mode = mode as "idle" | "daily" | "none";
+  }
+  if (process.env.PI_SERVER_SESSION_RESET_IDLE_MINUTES) {
+    const mins = parseInt(process.env.PI_SERVER_SESSION_RESET_IDLE_MINUTES, 10);
+    if (isNaN(mins) || mins < 1) {
+      throw new ConfigError(
+        `Invalid PI_SERVER_SESSION_RESET_IDLE_MINUTES: "${process.env.PI_SERVER_SESSION_RESET_IDLE_MINUTES}". Must be >= 1.`,
+      );
+    }
+    config.sessionReset.idleMinutes = mins;
+  }
+  if (process.env.PI_SERVER_SESSION_RESET_AT_HOUR) {
+    const hour = parseInt(process.env.PI_SERVER_SESSION_RESET_AT_HOUR, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) {
+      throw new ConfigError(
+        `Invalid PI_SERVER_SESSION_RESET_AT_HOUR: "${process.env.PI_SERVER_SESSION_RESET_AT_HOUR}". Must be 0-23.`,
+      );
+    }
+    config.sessionReset.atHour = hour;
+  }
+
   return config;
 }
