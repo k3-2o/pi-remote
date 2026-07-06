@@ -32,6 +32,8 @@ USAGE
   pi-remote stop           Stop the running server
   pi-remote restart        Restart the server
   pi-remote status         Check if the server is running
+  pi-remote health         Show server health (uptime, sessions)
+  pi-remote sessions       List active sessions
   pi-remote relay          Direct stdin/stdout relay (debug mode)
   pi-remote install        Install as systemd service (auto-start on boot)
   pi-remote uninstall      Remove systemd service (stop + disable + delete unit)
@@ -85,6 +87,18 @@ EXAMPLES
       console.log("pi-remote is not running");
       process.exit(1);
     }
+  }
+
+  // ── Health ──────────────────────────────────────────────
+  if (command === "health") {
+    await runHealthCheck(args.slice(1));
+    return;
+  }
+
+  // ── Sessions ────────────────────────────────────────────
+  if (command === "sessions") {
+    await runSessionList(args.slice(1));
+    return;
   }
 
   // ── Stop ────────────────────────────────────────────────
@@ -430,6 +444,102 @@ async function runUninstall(): Promise<void> {
     console.log(`  Run 'pi-remote install' to reinstall.`);
   } catch (err) {
     console.error(`Cannot remove ${unitPath} — try: sudo pi-remote uninstall`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Health check — calls GET /v1/health on the running server.
+ */
+async function runHealthCheck(cliArgs: string[]): Promise<void> {
+  const config = loadConfig();
+  let port = config.port;
+  let host = config.host;
+
+  for (let i = 0; i < cliArgs.length; i++) {
+    if ((cliArgs[i] === "--port" || cliArgs[i] === "-p") && cliArgs[i + 1]) {
+      port = parseInt(cliArgs[++i], 10);
+    } else if (cliArgs[i] === "--host" && cliArgs[i + 1]) {
+      host = cliArgs[++i];
+    }
+  }
+
+  host = host === "0.0.0.0" ? "127.0.0.1" : host;
+  const url = `http://${host}:${port}/v1/health`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.log(`pi-remote is not running (HTTP ${res.status})`);
+      process.exit(1);
+    }
+    const data = (await res.json()) as Record<string, unknown>;
+
+    const uptime = Number(data.uptime ?? 0);
+    const hours = Math.floor(uptime / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+    const uptimeStr =
+      hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${Math.floor(uptime % 60)}s`;
+
+    console.log(`pi-remote v${data.version}`);
+    console.log(`  Status:    ${data.status}`);
+    console.log(`  Uptime:    ${uptimeStr}`);
+    console.log(`  Sessions:  ${data.sessions}`);
+  } catch {
+    console.log("pi-remote is not running");
+    process.exit(1);
+  }
+}
+
+/**
+ * Session list — calls GET /v1/sessions on the running server.
+ */
+async function runSessionList(cliArgs: string[]): Promise<void> {
+  const config = loadConfig();
+  let port = config.port;
+  let host = config.host;
+
+  for (let i = 0; i < cliArgs.length; i++) {
+    if ((cliArgs[i] === "--port" || cliArgs[i] === "-p") && cliArgs[i + 1]) {
+      port = parseInt(cliArgs[++i], 10);
+    } else if (cliArgs[i] === "--host" && cliArgs[i + 1]) {
+      host = cliArgs[++i];
+    }
+  }
+
+  host = host === "0.0.0.0" ? "127.0.0.1" : host;
+  const url = `http://${host}:${port}/v1/sessions`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.log(`pi-remote is not running (HTTP ${res.status})`);
+      process.exit(1);
+    }
+    const data = (await res.json()) as { sessions?: Array<Record<string, unknown>> };
+    const sessions = data.sessions ?? [];
+
+    if (sessions.length === 0) {
+      console.log("No sessions.");
+      return;
+    }
+
+    console.log(
+      `${String(sessions.length).padEnd(4)} session${sessions.length !== 1 ? "s" : ""}`,
+    );
+    console.log("");
+
+    for (const s of sessions) {
+      const active = s.active ? "active" : "done";
+      const id = String(s.sessionId ?? "").slice(0, 16);
+      const msgs = String(s.messageCount ?? 0);
+      const created = String(s.createdAt ?? "").replace("T", " ").slice(0, 19);
+      console.log(
+        `${id.padEnd(18)} ${active.padEnd(8)} ${msgs.padEnd(4)} msgs  ${created}`,
+      );
+    }
+  } catch {
+    console.log("pi-remote is not running");
     process.exit(1);
   }
 }
