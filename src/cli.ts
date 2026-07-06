@@ -47,6 +47,9 @@ OPTIONS
   --config <path>          Config file path
   --log-level <level>      Log level: debug, info, warn, error
 
+  --port and --host also work with 'health' and 'sessions' to check a
+  server on a different port or machine.
+
 CONFIG FILE  (~/.config/pi-server/config.json or ~/.pi/pi-server.json)
   sessionReset.mode        "idle" (default) | "daily" | "none"
   sessionReset.idleMinutes Minutes of inactivity before reset (default: 30)
@@ -58,6 +61,9 @@ EXAMPLES
   pi-remote start
   pi-remote start --port 9090
   pi-remote status
+  pi-remote health                # check local server
+  pi-remote health --port 9090    # check on different port
+  pi-remote sessions              # list all sessions
   pi-remote relay
   pi-remote install        # installs systemd service, enables auto-start
 `);
