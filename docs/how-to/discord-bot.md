@@ -266,9 +266,21 @@ await pi.chat("one more");
 // close() only when bot exits
 ```
 
-### You don't need to close at all
+### When to use close()
 
-The server kills idle Pi processes after 30 minutes of inactivity. If your bot crashes or the connection drops, the server cleans up automatically within 40 seconds via heartbeat. `close()` is politeness, not necessity.
+For a long-running bot that stays online, you never need to call `close()` — the server kills idle Pi processes after 30 minutes of inactivity, and if your bot crashes, the server detects the dead connection within ~40 seconds via heartbeat and cleans up automatically.
+
+`close()` is for **explicit cleanup** — when your bot is shutting down, or when you want to end the session immediately:
+
+```js
+process.on("SIGINT", () => {
+  pi.close();
+  discord.destroy();
+  process.exit(0);
+});
+```
+
+> **HTTP shortcut:** There's also a stateless HTTP client (`PiRemote` instead of `PiRemoteWS`). It has no `connect()` or `close()` — each `chat()` call makes its own HTTP request. Handy for one-shot scripts, but you lose streaming, session persistence, and raw commands. See the [SDK reference](../reference/sdk.md) for both.
 
 ### Error handling
 
@@ -281,7 +293,7 @@ discord.on("messageCreate", async (msg) => {
     msg.channel.send(result.text.slice(0, 2000));
   } catch (err) {
     msg.channel.send(`Something went wrong: ${err.message}`);
-    // Try reconnecting
+    // Close then reconnect to get a fresh session
     pi.close();
     await pi.connect();
   }

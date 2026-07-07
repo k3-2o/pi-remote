@@ -201,7 +201,7 @@ Now you'll see each word appear as Pi writes it, like watching someone type in r
 | `connect()` | Opens the WebSocket. Creates a session. Pi starts. |
 | `chat("message")` | Sends a prompt, waits for Pi to finish, returns `{ text, toolCalls, sessionId }` |
 | `on("token", handler)` | Fires each word as Pi types it (for live streaming) |
-| `close()` | Hangs up. Optional — server cleans up idle sessions on its own. |
+| `close()` | Hangs up the WebSocket. Explicit end — server also cleans up idle sessions on its own after 30 min. |
 
 ---
 

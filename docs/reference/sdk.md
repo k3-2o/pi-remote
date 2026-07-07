@@ -43,7 +43,7 @@ If you never call `close()`:
 - If idle for 30 minutes, the server kills the **Pi process** (not the connection). Next message spawns a fresh Pi.
 - If your app crashes, the server detects the dead connection within ~40 seconds via heartbeat and cleans up
 
-So `close()` is politeness, not necessity. Your app can crash and nothing leaks.
+Call `close()` when you want to end the session explicitly — bot shutdown, cleanup, or switching to a new connection. If you never call it, the server handles cleanup automatically: idle Pi processes are killed after 30 minutes, and dead connections are detected within ~40 seconds via heartbeat.
 
 ---
 
