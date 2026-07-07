@@ -152,8 +152,8 @@ Result back through the platform (post comment, send email, log)
 
 **What you write:**
 
-The glue that converts the trigger payload into a prompt. For example, in n8n you'd have a Function node that takes the raw GitHub PR webhook body and returns `{ message: "Review PR #42 in org/repo for bugs" }`. That's the same `{ message: "..." }` pattern from everywhere else — just formatted inside the platform instead of in your own daemon.
+Glue that extracts a reference from the trigger payload and hands it to Pi as a task. For a GitHub PR webhook, the n8n Function node takes the raw body and returns `{ message: "review this PR: <html_url>" }` — same pattern as the GitHub webhook example above. That's it. Pi does the rest: it uses `gh` to fetch the diff, reads the changes, reasons about them, and returns the review. The glue doesn't parse the diff, fetch files, or understand the codebase — Pi does all of that with the tools it has on the server (`gh`, `git`, `curl`, MCP servers, Composio).
 
 **The result:**
 
-Don't want to run a webhook server, manage subscriptions, or write boilerplate for GitHub event parsing? Don't. Use an existing n8n instance, a Zapier subscription, or the Composio SDK. Wire the trigger to `POST /v1/chat`, feed it your prompt, and pipe the response wherever it needs to go. The platform abstracts the infrastructure. Your code stays focused on the prompt.
+The platform owns the trigger side. Pi owns the work. The glue in between is a few lines that turn an event into a prompt — the same `{ message: "..." }` shape used everywhere else in this doc. No webhook server to run, no subscriptions to manage, no boilerplate for parsing GitHub events. Use an existing n8n instance, a Zapier subscription, or the Composio SDK. Wire the trigger to `POST /v1/chat` (or a WebSocket), hand Pi the task, and let it carry out the work with the tools available on the server.
