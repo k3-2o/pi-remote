@@ -51,24 +51,13 @@ This means Pi can evolve its RPC protocol independently. pi-remote doesn't need 
 
 ---
 
-## Emergence — 30+ Commands From 2
+## Emergence — 31 Commands From 2
 
-The original goal required only two commands: `prompt` and `abort`.
+The original goal required only two commands: `prompt` and `abort`. The other 29 Pi RPC commands emerged because the pipe is transparent. One function — `forwardToPi` — dispatches all 31 with zero per-command code. If Pi adds a new RPC command, it flows through automatically.
 
-The other 25 Pi RPC commands emerged because the pipe is transparent. One function — `forwardToPi` — dispatches all 27 Pi commands with zero per-command code. If Pi adds a new RPC command, it flows through automatically.
+The 6 server-native commands (`get_health`, `get_version`, `list_sessions`, `create_session`, `delete_session`, `switch_session`) were the only ones deliberately built — for server management.
 
-The 6 WS-native commands (`get_health`, `get_version`, `list_sessions`, `create_session`, `delete_session`, `switch_session`) were the only ones deliberately built — for server management.
-
-Some emerged commands turned out genuinely useful for trigger code:
-
-- `set_model` — per-task model selection. Use Claude for code review, a cheap model for simple questions.
-- `set_thinking_level` — per-task depth control. "High" for complex tasks, "low" for quick answers.
-- `compact` — summarise old context to free the window.
-- `get_context_usage` — check before sending a large prompt.
-
-The rest are Pi internals. They cost nothing and someone might want them someday.
-
-> See [How It Works](how-it-works.md) for the full breakdown — what we built vs what Pi provides.
+> See [How It Works](how-it-works.md) for the full breakdown — what we built vs what Pi provides, including which emerged commands are genuinely useful for trigger code.
 
 ---
 

@@ -7,7 +7,7 @@ A step-by-step guide from zero to sending your first message and getting a respo
 ## What You're Building
 
 By the end of this tutorial, you'll have a working script that:
-1. Connects to pi-server (the box that holds Pi)
+1. Connects to pi-remote (the server that holds Pi)
 2. Sends Pi a message
 3. Gets the full response back
 4. Prints it
@@ -30,7 +30,7 @@ npm install -g @earendil-works/pi-coding-agent
 
 ---
 
-## Step 1: Install pi-server
+## Step 1: Install pi-remote
 
 ```bash
 npm install -g @k3_2o/pi-remote
@@ -136,7 +136,7 @@ That's it. You just talked to Pi over the network.
 ## What just happened?
 
 ```
-Your script                pi-server                Pi
+Your script                pi-remote                Pi
     │                         │                    │
     ├── connect() ───────────►│                    │
     │                         ├── spawns Pi ──────►│

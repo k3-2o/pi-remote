@@ -24,7 +24,7 @@ Bot:  Switched to claude-sonnet-4-20250514
 
 ## Prerequisites
 
-- pi-server **running** either locally or on a remote server (see [Your First Chat](../tutorials/your-first-chat.md))
+- pi-remote **running** either locally or on a remote server (see [Your First Chat](../tutorials/your-first-chat.md))
 - A Discord bot token (create one at https://discord.com/developers/applications)
 - `discord.js` installed
 
@@ -78,7 +78,7 @@ async function main() {
   discord.once("ready", () => {
     console.log(`Logged in as ${discord.user.tag}`);
     pi.connect().then(() => {
-      console.log("Connected to pi-server, session:", pi.sessionId);
+      console.log("Connected to pi-remote, session:", pi.sessionId);
     });
   });
 
@@ -125,7 +125,7 @@ Type `!ask write a haiku` in any Discord channel your bot can see. Pi responds.
 ## What the flow looks like
 
 ```
-Discord                    Your bot                    pi-server              Pi
+Discord                    Your bot                    pi-remote              Pi
   │                          │                           │                    │
   ├─ "!ask write a haiku" ──►│                           │                    │
   │                          ├── pi.chat("write a haiku")─►│                    │
@@ -339,7 +339,7 @@ async function main() {
   discord.once("ready", () => {
     console.log(`🤖 Logged in as ${discord.user.tag}`);
     pi.connect().then(() => {
-      console.log(`🔗 Connected to pi-server — session ${pi.sessionId}`);
+      console.log(`🔗 Connected to pi-remote — session ${pi.sessionId}`);
     });
   });
 
@@ -415,7 +415,7 @@ async function main() {
           `${health.sessions} session(s) active`
         );
       } catch (err) {
-        await msg.channel.send(`Couldn't reach pi-server: ${err.message}`);
+        await msg.channel.send(`Couldn't reach pi-remote: ${err.message}`);
       }
       return;
     }

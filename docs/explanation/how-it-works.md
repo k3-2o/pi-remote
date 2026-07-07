@@ -116,7 +116,7 @@ extension_error
 |---|---|---|
 | Pi RPC commands | 31 | Forwarded through `sendCommand()` |
 | Our server commands | 6 | Handled by pi-server, never touch Pi |
-| SDK convenience methods | 9 | Wrappers for common commands |
+| SDK convenience methods | 8 | `chat`, `health`, `version`, `listSessions`, `createSession`, `switchSession`, `deleteSession`, `abort` |
 | SDK lifecycle methods | 2 | `connect()`, `close()` — WebSocket actions, not commands |
 | Pi RPC events | 16 | All events Pi can emit |
 | SDK named events | 7 | The ones we translated (token, thinking, tool_start, etc.) |

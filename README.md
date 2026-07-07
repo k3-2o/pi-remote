@@ -38,11 +38,15 @@ pi-remote sessions             # list sessions
 
 ## Documentation
 
-### Tutorials (start here)
+### Quick Start
 | Document | What's in it |
 |---|---|
-| [Your First Chat](docs/tutorials/your-first-chat.md) | Step-by-step from zero — install, connect, send your first message |
-| [Getting Started](docs/getting-started.md) | Quick install + curl test (alternative to the tutorial) |
+| [Getting Started](docs/getting-started.md) | Five-minute install + curl test — verify it works |
+
+### Tutorials
+| Document | What's in it |
+|---|---|
+| [Your First Chat](docs/tutorials/your-first-chat.md) | Step-by-step from zero — install, connect, send your first message, learn the SDK |
 
 ### How-to Guides
 | Document | What's in it |

@@ -6,69 +6,34 @@ pi-remote is a server that listens. It doesn't originate actions, pull events, o
 
 ## Discord Bot
 
+The shape: a Discord message arrives → your glue strips the prefix and sends the text as a prompt → Pi does the work → you reply with the result.
+
 ```js
-// bot.js — run alongside pi-remote
-import { PiRemoteWS } from "@k3_2o/pi-remote/client";
-
-const client = new PiRemoteWS("ws://localhost:8080");
-
+// The pattern only — see the full bot guide for a working implementation
 discordBot.on("message", async (msg) => {
   if (!msg.content.startsWith("@pi")) return;
-
-  await client.connect();
-  client.on("token", (t) => {/* stream tokens to Discord channel */});
   const result = await client.chat(msg.content.replace("@pi", "").trim());
   msg.reply(result.text);
-  client.close();
 });
 ```
 
-**With per-task customization** (model switching from emerged commands):
-
-```js
-discordBot.on("message", async (msg) => {
-  await client.connect();
-
-  // PR review → use Claude, think harder
-  if (msg.content.includes("review")) {
-    await client.sendCommand({ type: "set_model", provider: "openrouter", modelId: "claude-sonnet" });
-    await client.sendCommand({ type: "set_thinking_level", level: "high" });
-  }
-
-  const result = await client.chat(msg.content.replace("@pi", "").trim());
-  msg.reply(result.text);
-  client.close();
-});
-```
-
-**Conversation mode** — Pi can ask questions back:
-
-```js
-client.on("extension_ui_request", (req) => {
-  msg.reply(`Pi asks: ${req.message}`);
-  // Wait for user response, then:
-  client.sendExtensionUIResponse(req.id, { confirmed: true });
-});
-```
+The full implementation — connect once, stream tokens live, switch models mid-session, handle errors — is in [Build a Discord Bot](discord-bot.md). That guide owns the bot lifecycle. This doc owns the trigger pattern.
 
 ---
 
 ## Telegram Bot
 
-Same pattern. HTTP or WebSocket — your choice.
+Identical shape. Different platform.
 
 ```python
-from pi_remote_ws import PiRemoteWS
-
-client = PiRemoteWS("ws://localhost:8080")
-
+# The pattern only
 @bot.message_handler(func=lambda m: m.text.startswith("/pi"))
 async def handle_pi(message):
-    await client.connect()
     result = await client.chat(message.text.replace("/pi", "").strip())
     await bot.reply_to(message, result["text"])
-    await client.close()
 ```
+
+Connect once when the bot starts. Don't connect/close per message — same lifecycle rule as the Discord bot.
 
 ---
 

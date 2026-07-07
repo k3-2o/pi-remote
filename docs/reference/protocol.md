@@ -47,7 +47,7 @@ Server → Client:  { type: "response", requestId: "req_1",
 
 ### Session-Scoped Commands
 
-Forwarded to Pi. The pipe is transparent — these 27 commands all use the same `forwardToPi` dispatch with zero per-command code.
+Forwarded to Pi. The pipe is transparent — all 31 flow through the same `forwardToPi` dispatch with zero per-command code. If Pi adds a new command, it works immediately.
 
 | Command | What it does |
 |---|---|
@@ -72,12 +72,22 @@ Forwarded to Pi. The pipe is transparent — these 27 commands all use the same 
 | `cycle_model` | Cycle to next configured model |
 | `cycle_thinking_level` | Cycle thinking levels |
 | `get_session_stats` | Session statistics |
+| `export_html` | Export session to HTML |
+| `clone` | Duplicate current branch |
 | `get_fork_messages` | Fork message list |
+| `switch_session` | Load a different session file (by path) |
 | `switch_session_file` | Switch session file path |
+| `set_steering_mode` | How steering messages are delivered |
+| `set_follow_up_mode` | How follow-up messages are delivered |
+| `set_auto_retry` | Toggle auto-retry on transient errors |
+| `abort_retry` | Abort an in-progress retry |
 | `get_commands` | List available commands |
 | `new_session` | Start a new session |
 | `get_last_assistant_text` | Last response text |
-| `extension_ui_response` | Response to UI dialog |
+
+> **Two commands named `switch_session`.** Pi has a `switch_session` command that loads a session *file* by path. pi-remote has its own server-native `switch_session` that switches between *sessions it manages* by sessionId. Same name, different command. The server-native one (below) takes precedence on the WebSocket — if you need Pi's file-based one, use `switch_session_file` instead.
+
+> **Extension UI responses** (`extension_ui_response`) are not forwarded through `forwardToPi`. They're handled by a separate bridge that routes the response back to Pi's stdin. Functionally similar, but it doesn't go through the command router.
 
 ### WS-Native Commands
 

@@ -22,7 +22,7 @@ Verify it installed:
 
 ```bash
 pi-remote --version
-# → 0.2.0
+# → 0.2.1
 ```
 
 ---
@@ -36,7 +36,7 @@ pi-remote start
 You should see:
 
 ```
-pi-remote v0.2.0 started on http://0.0.0.0:8080
+pi-remote v0.2.1 started on http://0.0.0.0:8080
 ```
 
 The server runs in the foreground. Press `Ctrl+C` to stop.
@@ -56,7 +56,7 @@ pi-remote health
 ```
 
 ```
-pi-remote v0.1.0
+pi-remote v0.2.1
   Status:    ok
   Uptime:    0m 12s
   Sessions:  0
