@@ -119,3 +119,41 @@ app.post("/webhook", async (req, res) => {
 5. Your code delivers the response back (Discord reply, email, log file)
 
 pi-remote never knows Discord, Telegram, cron, or GitHub exist. It just receives a prompt and forwards it to Pi. The translation from external event to `{ message: "..." }` is the only code you write.
+
+---
+
+## Automation Platforms (n8n, Composio, Zapier)
+
+Every example above runs a custom daemon — a webhook server, a long-running bot process, or a cron entry. I have to manage subscriptions, retries, reconnection, and uptime myself. The next step is offloading that entirely to an automation platform.
+
+**The same pipeline, but the platform owns the receiver side:**
+
+```
+Trigger (GitHub PR, Discord webhook, email, cron, etc.)
+       │
+       ▼
+Automation platform ─── receives the event, parses it
+  (n8n / Zapier /      ─── you write glue code (in the platform)
+   Composio SDK)           that converts the payload into a prompt
+       │
+       ▼
+pi-remote ─── HTTP or WebSocket, your choice
+       │
+       ▼
+Result back through the platform (post comment, send email, log)
+```
+
+**What the platform handles:**
+- Webhook receiver (no custom server)
+- Retry logic if pi-remote is busy
+- Credential storage (API keys, tokens)
+- Scheduling (cron built in)
+- Multi-step workflows (trigger → transform → call → respond)
+
+**What you write:**
+
+The glue that converts the trigger payload into a prompt. For example, in n8n you'd have a Function node that takes the raw GitHub PR webhook body and returns `{ message: "Review PR #42 in org/repo for bugs" }`. That's the same `{ message: "..." }` pattern from everywhere else — just formatted inside the platform instead of in your own daemon.
+
+**The result:**
+
+Don't want to run a webhook server, manage subscriptions, or write boilerplate for GitHub event parsing? Don't. Use an existing n8n instance, a Zapier subscription, or the Composio SDK. Wire the trigger to `POST /v1/chat`, feed it your prompt, and pipe the response wherever it needs to go. The platform abstracts the infrastructure. Your code stays focused on the prompt.
