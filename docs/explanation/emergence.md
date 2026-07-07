@@ -95,3 +95,7 @@ await client.sendCommand({ type: "set_model", provider: "openrouter", modelId: "
 The SDK hides the RPC protocol. The server hides process management. Together they turn Pi's internal JSON-RPC into a clean API surface. Devs build Discord bots, web dashboards, custom CLIs — they never see a raw RPC message or a subprocess.
 
 The 30+ commands weren't built. They emerged. The pipe is unfiltered. What the dev ignores, they never see. What they need, is already there.
+
+---
+
+*This document has been superseded by [How It Works](how-it-works.md), which has the accurate counts and a clearer explanation of what's abstracted vs what's raw.*

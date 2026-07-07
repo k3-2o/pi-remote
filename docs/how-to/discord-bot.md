@@ -18,9 +18,15 @@ Bot:  Silent keys tapping,
 
 ## Prerequisites
 
-- pi-server **running** (see [Your First Chat](../tutorials/your-first-chat.md))
+- pi-server **running** either locally or on a remote server (see [Your First Chat](../tutorials/your-first-chat.md))
 - A Discord bot token (create one at https://discord.com/developers/applications)
 - `discord.js` installed
+
+> **Running pi-remote remotely?** This guide uses `ws://localhost:8080` — the local dev setup.
+> If pi-remote is deployed on a VPS behind nginx with TLS (production), the only change
+> is the connection URL. Everything else is identical. See
+> [Deploy to a VPS](../tutorials/deploy-to-vps.md) for the server setup, then come back here
+> and swap the URL to `wss://pi.yourdomain.com`.
 
 ---
 
@@ -235,3 +241,25 @@ discord.login(process.env.DISCORD_TOKEN);
 ```
 
 See [examples/discord-bot.mjs](../../examples/discord-bot.mjs) for the complete file.
+
+---
+
+## Going to production
+
+When your bot is ready to run against a production pi-remote on a remote server,
+the only code change is the connection URL:
+
+```js
+// Local development
+const pi = new PiRemoteWS("ws://localhost:8080");
+
+// Remote production (TLS + API key)
+const pi = new PiRemoteWS(
+  "wss://pi.yourdomain.com",
+  "sk-pi-your-secret-key"
+);
+```
+
+Everything else — `connect()`, `chat()`, `on("token")`, `on("agent_end")` — stays the same.
+
+See the [Deploy to a VPS](../tutorials/deploy-to-vps.md) guide for the full server setup walkthrough.
