@@ -433,7 +433,7 @@ Run it:
 DISCORD_TOKEN=your_token_here node bot.mjs
 ```
 
-See [examples/discord-bot.mjs](../../examples/discord-bot.mjs) for the complete file.
+The complete code is above — copy it into `bot.mjs` and you're ready to run.
 
 ---
 

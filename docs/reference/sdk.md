@@ -203,7 +203,7 @@ These are convenience methods for common server tasks. Each one wraps a `sendCom
 
 ## Raw Commands — Everything Else
 
-Pi has **31 RPC commands** total. The SDK gives convenience methods for 7 of them. The other 24 you send through `sendCommand()`:
+Pi has **31 RPC commands** total. The SDK gives convenience shortcuts for only 2 of them — `chat()` wraps `prompt`, `abort()` wraps `abort`. The other 29 you send through `sendCommand()`. (The remaining SDK methods — `health`, `version`, `listSessions`, `createSession`, `switchSession`, `deleteSession` — wrap the 6 server-native commands, not Pi commands.)
 
 ```js
 await client.sendCommand({ type: "get_tree" });

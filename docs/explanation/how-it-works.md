@@ -77,7 +77,7 @@ This means:
 | WebSocket connection | Opens, sends hello, waits for welcome, heartbeat |
 | Command wrapping | Wraps your payload in the protocol envelope, tracks request IDs |
 | Event translation | Renames Pi's raw events to clean names (token, thinking, tool_start) |
-| 9 convenience methods | Shortcuts for common commands |
+| 8 convenience methods | Shortcuts for common commands (`chat`, `health`, `version`, `listSessions`, `createSession`, `switchSession`, `deleteSession`, `abort`) |
 | Chat orchestrator | Sends prompt, collects tokens, waits for agent_end, returns clean result |
 
 ### Emerged (from Pi's RPC protocol — we didn't build these)
