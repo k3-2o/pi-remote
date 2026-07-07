@@ -6,12 +6,18 @@ A practical guide to connecting your Discord bot to Pi so it can answer question
 
 ## What You'll Build
 
-A Discord bot that responds to `!ask` commands:
+A Discord bot that responds to `!ask`, streams replies live, and can switch Pi models on the fly:
 ```
 User: !ask write a haiku
-Bot:  Silent keys tapping,
+Bot:  Silent keys tapping,      (streamed word-by-word)
       Bugs hide in the shadows,
       A fix pushes through.
+
+User: !models
+Bot:  Available models: claude-sonnet-4-20250514, gemini-2.5-pro, ...
+
+User: !model claude-sonnet-4-20250514
+Bot:  Switched to claude-sonnet-4-20250514
 ```
 
 ---
@@ -53,31 +59,54 @@ Create `bot.mjs`:
 import { Client, GatewayIntentBits } from "discord.js";
 import { PiRemoteWS } from "./pi_remote_ws.mjs";
 
-// Discord setup
-const discord = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const TOKEN = process.env.DISCORD_TOKEN;
+const PI_URL = process.env.PI_URL || "ws://localhost:8080";
+const PI_KEY = process.env.PI_KEY || null;
 
-// Pi setup — connect ONCE when the bot starts
-const pi = new PiRemoteWS("ws://localhost:8080");
-await pi.connect();
-console.log("Connected to pi-server, session:", pi.sessionId);
+async function main() {
+  const discord = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+    ],
+  });
 
-// When someone says "!ask <message>" in Discord
-discord.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
-  if (!msg.content.startsWith("!ask")) return;
+  const pi = new PiRemoteWS(PI_URL, PI_KEY);
 
-  const prompt = msg.content.slice(5).trim();
-  if (!prompt) return;
+  // Wait for Discord to be ready, then connect to Pi
+  discord.once("ready", () => {
+    console.log(`Logged in as ${discord.user.tag}`);
+    pi.connect().then(() => {
+      console.log("Connected to pi-server, session:", pi.sessionId);
+    });
+  });
 
-  // Send to Pi and wait for the full response
-  const result = await pi.chat(prompt);
-  
-  // Discord renders markdown natively, so send raw text
-  msg.channel.send(result.text.slice(0, 2000)); // Discord has a 2000 char limit
-});
+  discord.on("messageCreate", async (msg) => {
+    if (msg.author.bot) return;
+    if (!msg.content.startsWith("!ask")) return;
 
-discord.login("YOUR_DISCORD_BOT_TOKEN");
+    const prompt = msg.content.slice(5).trim();
+    if (!prompt) return;
+
+    try {
+      const result = await pi.chat(prompt);
+      // Split into 2000-char chunks if needed
+      for (let i = 0; i < result.text.length; i += 2000) {
+        await msg.channel.send(result.text.slice(i, i + 2000));
+      }
+    } catch (err) {
+      msg.channel.send(`Something went wrong: ${err.message}`);
+    }
+  });
+
+  await discord.login(TOKEN);
+}
+
+main().catch(console.error);
 ```
+
+> **Important:** The `MessageContent` intent must be enabled in your [Discord Developer Portal](https://discord.com/developers/applications) under Bot → Privileged Gateway Intents. Without it, your bot won't see message content.
 
 ---
 
@@ -111,7 +140,7 @@ Discord                    Your bot                    pi-server              Pi
 
 ## Step 4: Live streaming (optional)
 
-If you want the bot to show Pi typing in real-time instead of waiting for the whole response:
+Instead of waiting for the full response and sending it in one shot, you can edit a single message progressively as Pi types — just like how Pi streams in the terminal.
 
 ```js
 discord.on("messageCreate", async (msg) => {
@@ -120,28 +149,102 @@ discord.on("messageCreate", async (msg) => {
   const prompt = msg.content.slice(5).trim();
   if (!prompt) return;
 
-  // Send typing indicator
-  msg.channel.sendTyping();
+  // Send a placeholder we'll edit as Pi types
+  const botMsg = await msg.channel.send("⏳ Thinking...");
 
-  // Collect tokens as they arrive
+  // Buffer to accumulate and send edits periodically
   let buffer = "";
-  pi.on("token", t => {
-    buffer += t;
-    // Send every 50 chars to show progress
-    if (buffer.length > 50) {
-      msg.channel.sendTyping();
-      // (In production you'd edit a single message instead)
-    }
-  });
+  let lastEdit = 0;
 
-  // Wait for Pi to finish, then send the full response
-  await pi.chat(prompt);
-  msg.channel.send(buffer.slice(0, 2000));
+  try {
+    await pi.chat(prompt, {
+      onToken: async (t) => {
+        buffer += t;
+        // Edit the message every ~100 chars or ~1.5s (to avoid rate limits)
+        const now = Date.now();
+        if (buffer.length >= 100 || now - lastEdit > 1500) {
+          lastEdit = now;
+          // Truncate for Discord's 2000-char limit, add "..." if incomplete
+          const display = buffer.length > 1990
+            ? buffer.slice(-1990) + "…"
+            : buffer;
+          await botMsg.edit(display).catch(() => {});
+        }
+      },
+    });
 
-  // Clean up the listener we added
-  pi.off("token");
+    // Final edit with the complete response
+    await botMsg.edit(buffer.slice(0, 2000));
+  } catch (err) {
+    await botMsg.edit(`❌ ${err.message}`);
+  }
 });
 ```
+
+**What's happening:**
+- `chat()` accepts an `onToken` callback — it fires on every token Pi sends
+- We buffer tokens and edit the same message periodically (debounced)
+- Discord's rate limit for message edits is generous, but we still throttle to avoid unnecessary calls
+- Once Pi finishes (`chat()` resolves), we do a final edit with the complete text
+
+> **Why `onToken` instead of `pi.on("token", ...)`?** Using the callback built into `chat()` avoids a race condition — if you attach a raw event listener and call `chat()` separately, both your handler and `chat()`'s internal handler listen to the same event, which is fragile and harder to clean up. The `onToken` callback is the intended API for streaming.
+
+---
+
+## Step 5: Switching models
+
+You can change the model Pi uses mid-session with `sendCommand`. This lets you use a cheap/fast model for simple questions and a powerful model for complex tasks — all without restarting the server.
+
+Add a `!model` command to switch models, and `!models` to list available ones:
+
+```js
+discord.on("messageCreate", async (msg) => {
+  if (msg.author.bot) return;
+
+  // Show available models
+  if (msg.content === "!models") {
+    try {
+      const result = await pi.sendCommand({ type: "get_available_models" });
+      const models = result.models || result;
+      const formatted = Array.isArray(models)
+        ? models.map(m => `\`${m.provider}/${m.modelId}\``).join("\n")
+        : JSON.stringify(models, null, 2);
+      msg.channel.send(`**Available models:**\n${formatted}`);
+    } catch (err) {
+      msg.channel.send(`Couldn't fetch models: ${err.message}`);
+    }
+    return;
+  }
+
+  // Switch to a specific model: !model <provider/modelId>
+  // Example: !model openrouter/anthropic/claude-sonnet-4-20250514
+  if (msg.content.startsWith("!model ")) {
+    const modelArg = msg.content.slice(7).trim();
+    const parts = modelArg.split("/");
+    // Accept both "provider/modelId" and shorthand
+    let provider, modelId;
+    if (parts.length >= 2) {
+      provider = parts[0];
+      modelId = parts.slice(1).join("/");
+    } else {
+      provider = "openrouter";
+      modelId = modelArg;
+    }
+
+    try {
+      await pi.sendCommand({ type: "set_model", provider, modelId });
+      msg.channel.send(`✅ Switched to \`${provider}/${modelId}\``);
+    } catch (err) {
+      msg.channel.send(`❌ Couldn't switch model: ${err.message}`);
+    }
+    return;
+  }
+
+  // ... rest of your commands (!ask, !ping, etc.)
+});
+```
+
+> **How `sendCommand` works:** It sends any Pi RPC command through the WebSocket and waits for the response. There are 31 Pi commands total. `set_model` and `get_available_models` are just two of them — you use the same pattern for `compact`, `set_thinking_level`, `fork`, `bash`, or any other command. See the [SDK reference](../reference/sdk.md) for the full list.
 
 ---
 
@@ -198,46 +301,124 @@ await pi.chat("make it funnier");     // Pi rewrites it funnier (same conversati
 
 ## Full example
 
-<｜｜DSML｜｜tool_calls>
-<｜｜DSML｜｜invoke name="write">
-<｜｜DSML｜｜parameter name="content" string="true">```js
+Here's a complete bot that ties everything together — `!ask` with streaming, `!models`/`!model` for model switching, and `!ping` for health checks.
+
+Create `bot.mjs`:
+
+```js
 import { Client, GatewayIntentBits } from "discord.js";
 import { PiRemoteWS } from "./pi_remote_ws.mjs";
 
-const discord = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-});
+const TOKEN = process.env.DISCORD_TOKEN;
+const PI_URL = process.env.PI_URL || "ws://localhost:8080";
+const PI_KEY = process.env.PI_KEY || null;
 
-const pi = new PiRemoteWS("ws://localhost:8080");
-await pi.connect();
+async function main() {
+  const discord = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+    ],
+  });
 
-discord.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
+  const pi = new PiRemoteWS(PI_URL, PI_KEY);
 
-  if (msg.content.startsWith("!ask")) {
-    const prompt = msg.content.slice(5).trim();
-    if (!prompt) return;
+  discord.once("ready", () => {
+    console.log(`🤖 Logged in as ${discord.user.tag}`);
+    pi.connect().then(() => {
+      console.log(`🔗 Connected to pi-server — session ${pi.sessionId}`);
+    });
+  });
 
-    try {
-      msg.channel.sendTyping();
-      const result = await pi.chat(prompt);
-      msg.channel.send(result.text.slice(0, 2000));
-    } catch (err) {
-      msg.channel.send(`Error: ${err.message}`);
+  discord.on("messageCreate", async (msg) => {
+    if (msg.author.bot) return;
+
+    // ── !ask <prompt> — streamed response ──
+    if (msg.content.startsWith("!ask ")) {
+      const prompt = msg.content.slice(5).trim();
+
+      const botMsg = await msg.channel.send("⏳");
+      let buffer = "";
+      let lastEdit = 0;
+
+      try {
+        await pi.chat(prompt, {
+          onToken: async (t) => {
+            buffer += t;
+            const now = Date.now();
+            if (buffer.length >= 100 || now - lastEdit > 1500) {
+              lastEdit = now;
+              const display = buffer.length > 1990
+                ? buffer.slice(-1990) + "…"
+                : buffer;
+              await botMsg.edit(display).catch(() => {});
+            }
+          },
+        });
+        await botMsg.edit(buffer.slice(0, 2000));
+      } catch (err) {
+        await botMsg.edit(`❌ ${err.message}`);
+      }
+      return;
     }
-  }
 
-  if (msg.content === "!ping") {
-    const health = await pi.health();
-    msg.channel.send(`pi-server is ${health.status}, ${health.sessions} sessions active`);
-  }
-});
+    // ── !models — list available models ──
+    if (msg.content === "!models") {
+      try {
+        const result = await pi.sendCommand({ type: "get_available_models" });
+        const models = result.models || result;
+        const formatted = Array.isArray(models)
+          ? models.map(m => `• \`${m.provider || "?"}/${m.modelId || m}\\``).join("\n")
+          : JSON.stringify(models, null, 2);
+        await msg.channel.send(`**Available models:**\n${formatted}`);
+      } catch (err) {
+        await msg.channel.send(`Couldn't fetch models: ${err.message}`);
+      }
+      return;
+    }
 
-discord.login(process.env.DISCORD_TOKEN);
+    // ── !model <provider/modelId> — switch model ──
+    if (msg.content.startsWith("!model ")) {
+      const arg = msg.content.slice(7).trim();
+      const parts = arg.split("/");
+      const provider = parts.length >= 2 ? parts[0] : "openrouter";
+      const modelId = parts.length >= 2 ? parts.slice(1).join("/") : arg;
+
+      try {
+        await pi.sendCommand({ type: "set_model", provider, modelId });
+        await msg.channel.send(`✅ Switched to \`${provider}/${modelId}\``);
+      } catch (err) {
+        await msg.channel.send(`❌ ${err.message}`);
+      }
+      return;
+    }
+
+    // ── !ping — server health check ──
+    if (msg.content === "!ping") {
+      try {
+        const health = await pi.health();
+        await msg.channel.send(
+          `pong — server is **${health.status}**, ` +
+          `${health.sessions} session(s) active`
+        );
+      } catch (err) {
+        await msg.channel.send(`Couldn't reach pi-server: ${err.message}`);
+      }
+      return;
+    }
+  });
+
+  await discord.login(TOKEN);
+}
+
+main().catch(console.error);
+```
+
+Run it:
+
+```bash
+DISCORD_TOKEN=your_token_here node bot.mjs
 ```
 
 See [examples/discord-bot.mjs](../../examples/discord-bot.mjs) for the complete file.
