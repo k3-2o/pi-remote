@@ -57,7 +57,7 @@ The original goal required only two commands: `prompt` and `abort`.
 
 The other 25 Pi RPC commands emerged because the pipe is transparent. One function — `forwardToPi` — dispatches all 27 Pi commands with zero per-command code. If Pi adds a new RPC command, it flows through automatically.
 
-The 6 WS-native commands (`get_health`, `get_version`, `list_sessions`, `create_session`, `delete_session`, `switch_session`) were the only ones deliberately built — for server management and the attach TUI.
+The 6 WS-native commands (`get_health`, `get_version`, `list_sessions`, `create_session`, `delete_session`, `switch_session`) were the only ones deliberately built — for server management.
 
 Some emerged commands turned out genuinely useful for trigger code:
 
@@ -67,6 +67,8 @@ Some emerged commands turned out genuinely useful for trigger code:
 - `get_context_usage` — check before sending a large prompt.
 
 The rest are Pi internals. They cost nothing and someone might want them someday.
+
+> See [How It Works](how-it-works.md) for the full breakdown — what we built vs what Pi provides.
 
 ---
 

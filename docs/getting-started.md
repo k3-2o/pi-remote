@@ -141,6 +141,8 @@ sudo pi-remote uninstall  # remove systemd service
 
 ## Next Steps
 
+- [Follow the full tutorial](tutorials/your-first-chat.md) — step by step, from zero to your first message
+- [Build a Discord bot](how-to/discord-bot.md) — real example using the SDK
 - [Configure](reference/configuration.md) port, auth, session limits, reset policies
 - [Connect triggers](how-to/triggers.md) — Discord bots, cron jobs, GitHub webhooks
 - [Run as a daemon](how-to/daemon-mode.md) — background, systemd, logs

@@ -38,19 +38,34 @@ pi-remote sessions             # list sessions
 
 ## Documentation
 
+### Tutorials (start here)
 | Document | What's in it |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Install, first chat, daemon mode |
-| [Configuration](docs/reference/configuration.md) | Every config option with defaults |
-| [CLI Reference](docs/reference/cli.md) | Every command with options |
-| [Protocol](docs/reference/protocol.md) | WebSocket handshake, commands, events, extension UI |
-| [SDK Reference](docs/reference/sdk.md) | JavaScript and Python client API |
+| [Your First Chat](docs/tutorials/your-first-chat.md) | Step-by-step from zero — install, connect, send your first message |
+| [Getting Started](docs/getting-started.md) | Quick install + curl test (alternative to the tutorial) |
+
+### How-to Guides
+| Document | What's in it |
+|---|---|
+| [Build a Discord Bot](docs/how-to/discord-bot.md) | Connect pi-remote to a Discord bot — real example |
 | [Triggers](docs/how-to/triggers.md) | Discord bots, cron jobs, webhooks — patterns for connecting anything |
 | [Daemon Mode](docs/how-to/daemon-mode.md) | Background, systemd, logs |
 | [Docker](docs/how-to/docker.md) | Run in a container |
 | [Production Setup](docs/how-to/production.md) | TLS, rate limiting, log rotation |
-| [Architecture](docs/explanation/architecture.md) | Why WebSocket, process model |
-| [Emergence](docs/explanation/emergence.md) | How 30+ commands emerged from 2 |
+
+### Reference
+| Document | What's in it |
+|---|---|
+| [SDK Reference](docs/reference/sdk.md) | Every method and event — abstracted vs raw, examples |
+| [CLI Reference](docs/reference/cli.md) | Every command with options |
+| [Configuration](docs/reference/configuration.md) | Every config option with defaults |
+| [Protocol](docs/reference/protocol.md) | WebSocket handshake, commands, events, extension UI |
+
+### Explanation
+| Document | What's in it |
+|---|---|
+| [How It Works](docs/explanation/how-it-works.md) | The pipe model — what we built vs what emerged from Pi |
+| [Architecture](docs/explanation/architecture.md) | Why WebSocket, process model, design decisions |
 
 ---
 

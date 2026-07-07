@@ -1,181 +1,317 @@
 # SDK Reference
 
-Two WebSocket clients (JavaScript and Python). Two HTTP clients (sugar layer). All available from the npm package or as copy-paste examples.
+How to use the pi-remote SDK. Covers every method, every event, and explains what's a convenience wrapper vs raw protocol.
 
 ---
 
-## PiRemoteWS (JavaScript)
+## Before you start
+
+The SDK is one file: `pi_remote_ws.mjs`. Copy it into your project, import it, and use it.
 
 ```js
 import { PiRemoteWS } from "@k3_2o/pi-remote/client";
+// or copy the file and:
+import { PiRemoteWS } from "./pi_remote_ws.mjs";
 ```
 
-### Constructor
+---
+
+## Lifecycle — Opening and Closing the Pipe
+
+These are not commands. They're WebSocket actions — making the connection exist and destroying it.
+
+| Method | What it does |
+|---|---|
+| `connect()` | Opens WebSocket, sends hello, waits for welcome. Creates a session automatically. |
+| `close()` | Closes WebSocket. Server cleans up Pi process. You don't need to call this — server auto-cleans idle sessions. |
+| `isConnected` | Returns `true/false` |
+| `sessionId` | Your session's ID (set after connect) |
+
+### The pattern
 
 ```js
-new PiRemoteWS(url, apiKey?)
+const client = new PiRemoteWS("ws://localhost:8080");
+await client.connect();   // ← open the pipe
+// ... do stuff ...
+client.close();           // ← close the pipe (optional, server cleans up)
 ```
 
-- `url` — WebSocket URL. Default: `"ws://localhost:8080"`
-- `apiKey` — API key for auth. Default: `null`
+### You don't need to close()
 
-### Lifecycle
+If you never call `close()`:
+- The WebSocket stays open as long as both sides are alive
+- If idle for 30 minutes, the server kills the **Pi process** (not the connection). Next message spawns a fresh Pi.
+- If your app crashes, the server detects the dead connection within ~40 seconds via heartbeat and cleans up
+
+So `close()` is politeness, not necessity. Your app can crash and nothing leaks.
+
+---
+
+## Chat — The Main Thing
+
+### Convenience method (recommended for most cases)
 
 ```js
-await client.connect()     // Opens connection, sends hello, waits for welcome. Returns the client.
-client.isConnected         // true/false
-client.sessionId           // The auto-created session ID
-client.close()             // Closes connection. Session deactivated.
+const result = await client.chat("write a haiku");
+console.log(result.text);        // → "Silent keys tapping..."
+console.log(result.toolCalls);   // → [{ tool: "bash", args: {...}, ... }]
+console.log(result.sessionId);   // → "abc123"
 ```
 
-### Chat
+**What `chat()` does for you automatically:**
+1. Sends `{ type: "prompt", message: "write a haiku" }` to Pi
+2. Listens for `token` events and appends them to `result.text`
+3. Listens for `tool_start` events and pushes them to `result.toolCalls`
+4. Waits for `agent_end` to know Pi is done
+5. Returns `{ text, toolCalls, sessionId }`
+6. Cleans up all internal event listeners (no memory leaks)
+7. Handles 120-second timeout
+
+### Raw equivalent (if you need more control)
 
 ```js
-await client.chat(message, options?)
-// Returns: { text, toolCalls, sessionId }
+// You send the prompt yourself
+await client.sendCommand({ type: "prompt", message: "write a haiku" });
 
-// Streaming
-client.on("token", (text) => ...)
-client.on("tool_start", ({ tool, args, id }) => ...)
-client.on("thinking", (text) => ...)
-client.on("tool_output", ({ output }) => ...)
-client.on("tool_end", ({ result, isError }) => ...)
-client.on("agent_end", () => ...)
-```
-
-### Events
-
-```js
-client.on(event, handler)
-client.off(event, handler)
-```
-
-| Event | Type | When |
-|---|---|---|
-| `token` | `string` | Text chunk from Pi |
-| `thinking` | `string` | Model reasoning (model-dependent) |
-| `tool_start` | `{ tool, args, id }` | Tool execution started |
-| `tool_output` | `{ output }` | Partial tool output |
-| `tool_end` | `{ result, isError }` | Tool execution finished |
-| `agent_end` | object | Prompt complete |
-| `extension_ui_request` | `{ id, method, message, options?, default? }` | Pi asks a question |
-| `error` | `Error` | Connection or protocol error |
-| `close` | — | Connection closed |
-
-### Extension UI
-
-```js
-client.on("extension_ui_request", (req) => {
-  // req.method: "confirm" | "select" | "input" | "editor"
-  // req.message: the question
-  // Show dialog to user, then:
-  client.sendExtensionUIResponse(req.id, { confirmed: true });
+// You handle events yourself
+let text = "";
+client.on("token", t => text += t);
+client.on("tool_start", ({ tool }) => console.log("Tool:", tool));
+client.on("agent_end", () => {
+  console.log("Done:", text);
+  // You must clean up yourself:
+  client.off("token");
+  client.off("tool_start");
+  client.off("agent_end");
 });
 ```
 
-### Operations
+**When to use raw instead of `chat()`:**
+- You want to stream tokens to Discord in real-time (word by word) instead of collecting and sending at the end
+- You need to handle events differently (e.g., cancel mid-stream)
+- You want to integrate with your own progress indicators
+
+### Streaming with `chat()` (incremental)
+
+`chat()` also accepts callbacks that fire during streaming:
 
 ```js
-await client.health()          // → { status, uptime, sessions, wsClients, version }
-await client.listSessions()    // → [{ sessionId, active, messageCount, ... }]
-await client.createSession(id?)  // → session info
-await client.switchSession(id) // → { type: "session_switched", ... }
-await client.deleteSession(id?)  // → { success: true }
-await client.abort()           // → abort current task
-```
-
-### Raw Commands
-
-All 27 Pi RPC commands available:
-
-```js
-await client.sendCommand({ type: "set_model", provider: "openrouter", modelId: "claude-sonnet" })
-await client.sendCommand({ type: "compact" })
-await client.sendCommand({ type: "bash", command: "ls" })
-await client.sendCommand({ type: "get_tree" })
+const result = await client.chat("write a haiku", {
+  onToken: t => process.stdout.write(t),        // fires as Pi types
+  onTool: ({ tool, args }) => console.log(`\n[${tool}]`),  // fires on tool use
+});
+// result.text is still the full accumulated text
 ```
 
 ---
 
-## PiRemoteWS (Python)
+## Events — What Pi Tells You
 
-```python
-from pi_remote_ws import PiRemoteWS
+### Named events (SDK translates Pi's raw JSON for you)
+
+```js
+client.on("token", t => ...)              // just the string, e.g. "Hello"
+client.on("thinking", t => ...)            // just the string
+client.on("tool_start", ({tool,args}) => ...)  // clean object
+client.on("tool_output", ({output}) => ...)     // partial result
+client.on("tool_end", ({result, isError}) => ...)
+client.on("agent_end", event => ...)
+client.on("extension_ui_request", req => ...)   // Pi asks a question
+client.on("error", err => ...)
+client.on("close", () => ...)
 ```
 
-Requires: `pip install websockets`
+**What the SDK does for named events:**
 
-### Constructor
+| SDK event | Pi's raw RPC event | What you get |
+|---|---|---|
+| `token` | `message_update` with `text_delta` | Just the string: `"Hello"` |
+| `thinking` | `message_update` with `thinking_delta` | Just the string |
+| `message` | `message_update` with other deltas | Raw event object |
+| `tool_start` | `tool_execution_start` | `{ tool, args, id }` |
+| `tool_output` | `tool_execution_update` | `{ output }` |
+| `tool_end` | `tool_execution_end` | `{ result, isError }` |
+| `agent_end` | `agent_end` | Raw event object |
+| `extension_ui_request` | `extension_ui_request` | `{ id, method, message, ... }` |
 
-```python
-client = PiRemoteWS(url="ws://localhost:8080", api_key=None)
+### Catch-all event (for everything else)
+
+Any Pi event the SDK doesn't have a name for comes through here:
+
+```js
+client.on("event", raw => {
+  // raw is the exact JSON Pi emitted
+  if (raw.type === "turn_start") {
+    console.log("New turn");
+  }
+  if (raw.type === "compaction_start") {
+    console.log("Compacting...");
+  }
+});
 ```
 
-### Lifecycle
+Pi events that fall through to `"event"`: `agent_start`, `turn_start`, `turn_end`, `message_start`, `message_end`, `queue_update`, `compaction_start`, `compaction_end`, `auto_retry_start`, `auto_retry_end`, `extension_error`.
 
-```python
-await client.connect()      # → welcome message dict
-client.is_connected         # → bool
-client.session_id           # → str
-await client.close()
+### on() and off()
+
+```js
+const handler = (t) => console.log(t);
+
+client.on("token", handler);    // add listener
+client.off("token", handler);   // remove it
 ```
 
-### Chat
+**Why `off()` matters:** Every `on()` adds a listener permanently. If you call `chat()` 100 times without cleaning up, you'd have 300 stale listeners. They'd keep firing for old conversations.
 
-```python
-result = await client.chat(message, on_token=None, on_tool=None)
-# → { "text": str, "tool_calls": list, "session_id": str }
+`chat()` calls `off()` automatically for its internal listeners. But if you add your own listeners with `on()`, you must remove them with `off()` when you're done, or they pile up.
 
-# Streaming
-client.on("token", lambda t: print(t, end="", flush=True))
-client.on("tool_start", lambda t: print(f"[{t['tool']}]"))
-client.on("agent_end", lambda e: print("Done"))
+### Extension UI (rare — only when Pi asks you a question)
+
+If a Pi extension calls `ctx.ui.confirm()` or `ctx.ui.select()`, Pi **pauses** and waits for your answer:
+
+```js
+client.on("extension_ui_request", (req) => {
+  // Pi is frozen, waiting for you
+  // req.method: "confirm" | "select" | "input" | "editor"
+  // req.message: the question
+  
+  // Answer:
+  client.sendExtensionUIResponse(req.id, { confirmed: true });
+  // Pi unblocks and continues
+});
 ```
+
+You will likely never use this unless you build custom Pi extensions that ask for user input. Normal `chat()` flows never trigger it.
+
+---
+
+## Operations — Server Management
+
+These are convenience methods for common server tasks. Each one wraps a `sendCommand()` call and returns cleaned-up data.
+
+| Method | Instead of writing | Returns |
+|---|---|---|
+| `health()` | `sendCommand({ type: "get_health" })` | `{ status, uptime, sessions, ... }` |
+| `version()` | `sendCommand({ type: "get_version" })` | `{ version, protocol }` |
+| `listSessions()` | `sendCommand({ type: "list_sessions" })` | `[{ sessionId, active, ... }]` (extracts `.sessions` for you) |
+| `createSession(id?)` | `sendCommand({ type: "create_session" })` | `{ sessionId, ... }` |
+| `switchSession(id)` | `sendCommand({ type: "switch_session", sessionId: id })` | `{ type: "session_switched", ... }` |
+| `deleteSession(id?)` | `sendCommand({ type: "delete_session", sessionId: id })` | `{ success: true }` |
+| `abort()` | `sendCommand({ type: "abort" })` | Response object |
+
+---
+
+## Raw Commands — Everything Else
+
+Pi has **31 RPC commands** total. The SDK gives convenience methods for 7 of them. The other 24 you send through `sendCommand()`:
+
+```js
+await client.sendCommand({ type: "get_tree" });
+await client.sendCommand({ type: "bash", command: "ls" });
+await client.sendCommand({ type: "set_model", provider: "anthropic", modelId: "..." });
+await client.sendCommand({ type: "compact" });
+await client.sendCommand({ type: "fork", entryId: "abc123" });
+await client.sendCommand({ type: "get_messages" });
+// ... any of the 31
+```
+
+You need to know the command name and its parameters from [Pi's RPC docs](https://github.com/earendil-works/pi-coding-agent/docs/rpc.md). The server forwards them blindly — it never needs to know what each command means.
+
+### The 31 Pi RPC commands
+
+```
+prompt, steer, follow_up, abort, new_session,
+get_state, get_messages, set_model, cycle_model, get_available_models,
+set_thinking_level, cycle_thinking_level, set_steering_mode, set_follow_up_mode,
+compact, set_auto_compaction, set_auto_retry, abort_retry,
+bash, abort_bash, get_session_stats, export_html,
+switch_session, fork, clone, get_fork_messages,
+get_entries, get_tree, get_last_assistant_text, set_session_name,
+get_commands
+```
+
+### The 6 server commands (not Pi commands — pi-server handles these)
+
+```
+get_health, get_version, list_sessions, create_session, delete_session, switch_session
+```
+
+---
+
+## sendCommand() vs sendExtensionUIResponse()
+
+These both send data, but differently:
+
+| Method | What it does | Request matching | Timeout | Returns |
+|---|---|---|---|---|
+| `sendCommand(payload)` | Wraps, sends, tracks request ID, matches response | ✅ Yes | ✅ 120s | Resolves with response |
+| `sendExtensionUIResponse(id, response)` | Raw WebSocket send | ❌ No | ❌ No | Nothing |
+
+`sendExtensionUIResponse()` is essentially raw — it just does `JSON.stringify()` and sends. It exists because you need to answer Pi's extension UI questions, and those don't follow the normal request/response pattern.
+
+---
+
+## Summary: What's abstracted vs what's raw
+
+### Commands
+
+| You want to... | Use this | Instead of writing |
+|---|---|---|
+| Send a message, get full response | `chat("hi")` | `sendCommand({ type: "prompt" })` + handle token/agent_end events |
+| Check server health | `health()` | `sendCommand({ type: "get_health" })` |
+| List sessions | `listSessions()` | `sendCommand({ type: "list_sessions" })` + extract `.sessions` |
+| Send any other command | `sendCommand({ type, ... })` | Raw protocol |
+| Answer Pi's question | `sendExtensionUIResponse(id, resp)` | Raw WebSocket send |
 
 ### Events
 
-```python
-client.on(event_name, handler)
-client.off(event_name, handler)
-```
-
-Same event names and shapes as JavaScript — `token`, `thinking`, `tool_start`, `tool_output`, `tool_end`, `agent_end`, `extension_ui_request`, `error`, `close`.
-
-### Operations
-
-```python
-await client.health()             # → dict
-await client.list_sessions()      # → list
-await client.create_session(id)   # → dict
-await client.switch_session(id)   # → dict
-await client.delete_session(id)   # → dict
-await client.abort()              # → dict
-await client.send_command({...})  # → dict
-await client.send_extension_ui_response(request_id, response)
-```
+| Pi fires this... | SDK fires this | What you get |
+|---|---|---|
+| `message_update` + `text_delta` | `"token"` | Just the string |
+| `message_update` + `thinking_delta` | `"thinking"` | Just the string |
+| `tool_execution_start` | `"tool_start"` | `{ tool, args, id }` |
+| `tool_execution_update` | `"tool_output"` | `{ output }` |
+| `tool_execution_end` | `"tool_end"` | `{ result, isError }` |
+| `agent_end` | `"agent_end"` | Raw event |
+| `extension_ui_request` | `"extension_ui_request"` | `{ id, method, message }` |
+| Everything else | `"event"` | Raw Pi JSON |
 
 ---
 
-## HTTP Clients (Sugar Layer)
+## Python SDK
 
-For fire-and-forget one-shots. No conversation. No extension UI. No commands beyond `prompt`.
-
-### JavaScript
-
-```js
-import { PiRemote } from "./pi_remote.mjs";  // or copy-paste from examples/
-
-const client = new PiRemote("http://localhost:8080", "optional-api-key");
-const result = await client.chat("review PR #42");
-// → { text: "...", toolCalls: [...], sessionId: "..." }
-```
-
-### Python
+The Python SDK (`pi_remote_ws.py`) has the same methods and events:
 
 ```python
-from pi_remote import PiRemote
+from pi_remote_ws import PiRemoteWS
+import asyncio
 
-client = PiRemote("http://localhost:8080")
-result = client.chat("review PR #42")
-# → { "text": "...", "tool_calls": [...], "session_id": "..." }
+async def main():
+    client = PiRemoteWS("ws://localhost:8080")
+    await client.connect()
+
+    client.on("token", lambda t: print(t, end="", flush=True))
+    result = await client.chat("write a haiku")
+    print(result["text"])
+
+    await client.close()
+
+asyncio.run(main())
 ```
+
+All operations, events, and patterns are identical to the JavaScript version.
+
+---
+
+## HTTP clients (alternative)
+
+For simple one-shot prompts without WebSocket:
+
+```js
+import { PiRemote } from "./pi_remote.mjs";
+const client = new PiRemote("http://localhost:8080");
+const result = await client.chat("write a haiku");
+console.log(result.text);
+```
+
+Limitations: No streaming events. No extension UI. No session reuse. No commands beyond `prompt`.
