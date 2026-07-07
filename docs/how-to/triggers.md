@@ -124,7 +124,7 @@ pi-remote never knows Discord, Telegram, cron, or GitHub exist. It just receives
 
 ## Automation Platforms (n8n, Composio, Zapier)
 
-Every example above runs a custom daemon — a webhook server, a long-running bot process, or a cron entry. I have to manage subscriptions, retries, reconnection, and uptime myself. The next step is offloading that entirely to an automation platform.
+Every example above runs a custom daemon — a webhook server, a long-running bot process, or a cron entry. The developer manages subscriptions, retries, reconnection, and uptime themselves. The next step is offloading that entirely to an automation platform.
 
 **The same pipeline, but the platform owns the receiver side:**
 
