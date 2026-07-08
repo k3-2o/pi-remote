@@ -55,21 +55,22 @@ HTTP is fine for one-shots. The response is SSE — pipe it to a log file or not
 ## GitHub Webhook
 
 ```js
-// webhook-handler.js
+// webhook-handler.js — connect once, handle many webhooks
 import { PiRemoteWS } from "@k3_2o/pi-remote/client";
 
-app.post("/webhook", async (req, res) => {
+const pi = new PiRemoteWS("ws://localhost:8080");
+await pi.connect({
+  systemPrompt: "You are a focused task-runner. Do the work, report back concisely.",
+});
+
+app.post("/webhook/github", async (req, res) => {
   const { action, pull_request } = req.body;
   if (action !== "opened") return res.status(200).end();
 
   res.status(200).end(); // acknowledge immediately
 
-  const client = new PiRemoteWS("ws://localhost:8080");
-  await client.connect();
-  await client.sendCommand({ type: "set_model", provider: "openrouter", modelId: "claude-sonnet" });
-  await client.sendCommand({ type: "set_thinking_level", level: "high" });
-  await client.chat(`review this PR: ${pull_request.html_url}`);
-  client.close();
+  await pi.sendCommand({ type: "set_model", provider: "openrouter", modelId: "claude-sonnet" });
+  await pi.chat(`review this PR: ${pull_request.html_url}`);
 });
 ```
 
