@@ -233,6 +233,7 @@ export class WsTransport {
           msg.systemPrompt as string | undefined,
           msg.appendSystemPrompt as string[] | undefined,
           msg.noTools as boolean | undefined,
+          msg.noExtensions as boolean | undefined,
           msg.tools as string[] | undefined,
         );
         state.sessionId = session.sessionId;

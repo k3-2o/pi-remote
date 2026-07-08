@@ -25,6 +25,7 @@ interface ManagedProcess {
   systemPrompt?: string;
   appendSystemPrompt?: string[];
   noTools?: boolean;
+  noExtensions?: boolean;
   tools?: string[];
 }
 
@@ -56,6 +57,7 @@ export class PiProcessManager {
     systemPrompt?: string,
     appendSystemPrompt?: string[],
     noTools?: boolean,
+    noExtensions?: boolean,
     tools?: string[],
   ): Promise<PiProcess> {
     const existing = this.processes.get(sessionId);
@@ -86,6 +88,7 @@ export class PiProcessManager {
     const storedSystemPrompt = existing?.systemPrompt ?? systemPrompt;
     const storedAppend = existing?.appendSystemPrompt ?? appendSystemPrompt;
     const storedNoTools = existing?.noTools ?? noTools;
+    const storedNoExtensions = existing?.noExtensions ?? noExtensions;
     const storedTools = existing?.tools ?? tools;
 
     // Build process options with per-session flags
@@ -96,6 +99,7 @@ export class PiProcessManager {
         ? storedAppend.flatMap((a) => ["--append-system-prompt", a])
         : []),
       ...(storedNoTools ? ["--no-tools"] : []),
+      ...(storedNoExtensions ? ["--no-extensions"] : []),
       ...(storedTools && storedTools.length > 0
         ? ["--tools", storedTools.join(",")]
         : []),
@@ -116,6 +120,7 @@ export class PiProcessManager {
       systemPrompt: storedSystemPrompt,
       appendSystemPrompt: storedAppend,
       noTools: storedNoTools,
+      noExtensions: storedNoExtensions,
       tools: storedTools,
     };
 

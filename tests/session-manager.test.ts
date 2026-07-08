@@ -89,6 +89,7 @@ describe("SessionManager", () => {
         undefined,
         undefined,
         undefined,
+        undefined,
       );
     });
 

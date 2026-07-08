@@ -13,6 +13,7 @@ Copy this file into your project. Requires: pip install websockets
             systemPrompt="You are a Discord bot that talks like a pirate.",
             appendSystemPrompt=["Keep responses under 100 chars."],
             noTools=True,  # disable all tools (public bot safety)
+            noExtensions=True,  # disable extensions too
             # or restrict to specific tools:
             # tools=["read", "bash"]
         )
@@ -55,7 +56,7 @@ class PiRemoteWS:
 
     # ── Lifecycle ──────────────────────────────────────────
 
-    async def connect(self, systemPrompt=None, appendSystemPrompt=None, noTools=None, tools=None):
+    async def connect(self, systemPrompt=None, appendSystemPrompt=None, noTools=None, noExtensions=None, tools=None):
         if self._connected:
             return self
 
@@ -73,6 +74,8 @@ class PiRemoteWS:
             hello["appendSystemPrompt"] = appendSystemPrompt
         if noTools is not None:
             hello["noTools"] = noTools
+        if noExtensions is not None:
+            hello["noExtensions"] = noExtensions
         if tools is not None:
             hello["tools"] = tools
         await self.ws.send(json.dumps(hello))

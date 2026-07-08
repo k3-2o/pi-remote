@@ -11,6 +11,7 @@
  *     systemPrompt: "You are a Discord bot that talks like a pirate.",
  *     appendSystemPrompt: ["Keep responses under 100 chars."],
  *     noTools: true,           // disable all tools (public bot safety)
+ *     noExtensions: true,      // disable extensions too
  *     // or restrict to specific tools:
  *     // tools: ["read", "bash"]
  *   });
@@ -54,7 +55,7 @@ export class PiRemoteWS {
 
   // ── Lifecycle ──────────────────────────────────────────
 
-  async connect({ systemPrompt, appendSystemPrompt, noTools, tools } = {}) {
+  async connect({ systemPrompt, appendSystemPrompt, noTools, noExtensions, tools } = {}) {
     if (this.#connected) return;
 
     const ws = new WebSocket(this.#url);
@@ -76,6 +77,7 @@ export class PiRemoteWS {
         if (systemPrompt) hello.systemPrompt = systemPrompt;
         if (appendSystemPrompt) hello.appendSystemPrompt = appendSystemPrompt;
         if (noTools !== undefined) hello.noTools = noTools;
+        if (noExtensions !== undefined) hello.noExtensions = noExtensions;
         if (tools) hello.tools = tools;
         ws.send(JSON.stringify(hello));
       });

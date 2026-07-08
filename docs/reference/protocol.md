@@ -29,6 +29,7 @@ The `hello` message accepts optional fields to configure the session's system pr
 | `systemPrompt` | `string` | Replaces Pi's default system prompt for this session. Context files and skills still appended. | `--system-prompt` |
 | `appendSystemPrompt` | `string[]` | Additional instructions appended to the system prompt. Repeatable — each entry becomes one `--append-system-prompt` flag. | `--append-system-prompt` |
 | `noTools` | `boolean` | Disable all tools (built-in and extension). Useful for public bots that shouldn't run commands. | `--no-tools` |
+| `noExtensions` | `boolean` | Disable extension discovery. Extensions explicitly loaded via `-e` still work. | `--no-extensions` |
 | `tools` | `string[]` | Explicit allowlist of tool names. Only these tools will be available. | `--tools` (comma-separated) |
 
 ```
