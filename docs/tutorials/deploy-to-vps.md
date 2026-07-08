@@ -199,6 +199,15 @@ curl -N -X POST http://127.0.0.1:8080/v1/chat \
 
 If the chat request fails with `401`, double-check your API key in the config file.
 
+**Bonus — open the dashboard:** Run `pi-remote attach` on the server. On this headless VPS it won't open a browser, but it'll print the dashboard URL and the SSH tunnel command you need to reach it from your laptop.
+
+```bash
+pi-remote attach
+# → pi-remote dashboard: http://127.0.0.1:8080/v1/ui
+# → SSH tunnel: ssh my-server -L 8080:localhost:8080
+# → Then open http://localhost:8080/v1/ui
+```
+
 Press `Ctrl+C` in the first SSH session to stop the foreground server.
 
 > **Troubleshooting:** If the server won't start, check for errors:

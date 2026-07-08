@@ -71,7 +71,27 @@ curl http://localhost:8080/v1/health
 
 ---
 
-## 4. Send Your First Prompt
+## 4. Open the Dashboard
+
+pi-remote serves a browser dashboard at `/v1/ui` with live session monitoring, history, and session management.
+
+```bash
+pi-remote attach
+```
+
+**On your local machine** (has a display): Opens the dashboard in your browser automatically.
+
+**On a headless server** (VPS, RasPi — no display): Prints the URL and SSH tunnel command so you can reach it from your laptop.
+
+```
+pi-remote dashboard: http://127.0.0.1:8080/v1/ui
+SSH tunnel: ssh my-server -L 8080:localhost:8080
+Then open http://localhost:8080/v1/ui
+```
+
+---
+
+## 5. Send Your First Prompt
 
 **Quick test with curl:**
 
@@ -118,7 +138,7 @@ asyncio.run(main())
 
 ---
 
-## 5. Background & Production
+## 6. Background & Production
 
 **Quick dev:** `pi-remote start --detach` forks into the background.
 
