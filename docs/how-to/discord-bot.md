@@ -129,7 +129,10 @@ async function main() {
   // Wait for Discord to be ready, then connect to Pi
   discord.once("ready", () => {
     console.log(`Logged in as ${discord.user.tag}`);
-    pi.connect().then(() => {
+    pi.connect({
+      systemPrompt: "You are a helpful Discord bot. Answer questions, review code, and assist with tasks.",
+      noTools: true,  // public bot — no bash, no file access
+    }).then(() => {
       console.log("Connected to pi-remote, session:", pi.sessionId);
     });
   });
