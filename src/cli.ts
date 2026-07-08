@@ -6,7 +6,12 @@
  *   pi-remote stop           Stop the server
  *   pi-remote restart        Restart the server
  *   pi-remote status         Check server status
+ *   pi-remote attach         Open browser dashboard
+ *   pi-remote health         Show server health
+ *   pi-remote sessions       List active sessions
  *   pi-remote relay          Direct stdin/stdout relay mode (debugging)
+ *   pi-remote install        Install as systemd service
+ *   pi-remote tail           Follow server event log
  *   pi-remote --version      Print version
  *   pi-remote --help         Print help
  */
@@ -37,6 +42,7 @@ USAGE
   pi-remote relay          Direct stdin/stdout relay (debug mode)
   pi-remote install        Install as systemd service (auto-start on boot)
   pi-remote uninstall      Remove systemd service (stop + disable + delete unit)
+  pi-remote attach         Open browser dashboard (http://localhost:PORT/v1/ui)
   pi-remote logs           Tail the event log (~/.pi/pi-remote/events.jsonl)
   pi-remote --version      Print version
   pi-remote --help         Print this help
@@ -64,6 +70,7 @@ EXAMPLES
   pi-remote health                # check local server
   pi-remote health --port 9090    # check on different port
   pi-remote sessions              # list all sessions
+  pi-remote attach         # open browser dashboard
   pi-remote relay
   pi-remote install        # installs systemd service, enables auto-start
 `);
@@ -104,6 +111,12 @@ EXAMPLES
   // ── Sessions ────────────────────────────────────────────
   if (command === "sessions") {
     await runSessionList(args.slice(1));
+    return;
+  }
+
+  // ── Attach (open browser dashboard) ─────────────────────
+  if (command === "attach") {
+    await runAttach(args.slice(1));
     return;
   }
 
@@ -390,6 +403,58 @@ WantedBy=multi-user.target
     console.error(`  sudo systemctl daemon-reload`);
     console.error(`  sudo systemctl enable --now pi-remote`);
     process.exit(1);
+  }
+}
+
+/**
+ * Open the browser dashboard.
+ */
+async function runAttach(cliArgs: string[]): Promise<void> {
+  const config = loadConfig();
+  let port = config.port;
+  let host = config.host;
+
+  for (let i = 0; i < cliArgs.length; i++) {
+    if ((cliArgs[i] === "--port" || cliArgs[i] === "-p") && cliArgs[i + 1]) {
+      port = parseInt(cliArgs[++i], 10);
+    } else if (cliArgs[i] === "--host" && cliArgs[i + 1]) {
+      host = cliArgs[++i];
+    }
+  }
+
+  // Verify server is running
+  const checkHost = host === "0.0.0.0" ? "127.0.0.1" : host;
+  const healthUrl = `http://${checkHost}:${port}/v1/health`;
+
+  try {
+    const res = await fetch(healthUrl);
+    if (!res.ok) {
+      console.log("pi-remote is not running");
+      process.exit(1);
+    }
+  } catch {
+    console.log("pi-remote is not running. Start it first: pi-remote start");
+    process.exit(1);
+  }
+
+  const url = `http://${checkHost}:${port}/v1/ui`;
+  console.log(`Opening ${url}...`);
+
+  // Platform-appropriate open command
+  const { execSync } = await import("node:child_process");
+  const platform = process.platform;
+
+  try {
+    if (platform === "darwin") {
+      execSync(`open "${url}"`, { stdio: "ignore", timeout: 5000 });
+    } else if (platform === "win32") {
+      execSync(`start "" "${url}"`, { stdio: "ignore", timeout: 5000 });
+    } else {
+      // Linux and others
+      execSync(`xdg-open "${url}"`, { stdio: "ignore", timeout: 5000 });
+    }
+  } catch {
+    console.log(`Could not open browser. Visit: ${url}`);
   }
 }
 
