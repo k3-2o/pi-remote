@@ -52,14 +52,18 @@ export class HttpTransport {
     this.app.use("*", async (c, next) => {
       if (
         c.req.path === "/v1/health" ||
-        c.req.path === "/v1/version" ||
-        c.req.path === "/v1/ui"
+        c.req.path === "/v1/version"
       ) {
         await next();
         return;
       }
 
-      const authHeader = c.req.header("authorization");
+      let authHeader = c.req.header("authorization");
+      // EventSource can't send custom headers, so support ?apikey= query param
+      if (!authHeader) {
+        const apikey = c.req.query("apikey");
+        if (apikey) authHeader = `Bearer ${apikey}`;
+      }
       const result = await this.authProvider.authenticate({
         transport: "http",
         authorization: authHeader,
