@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>pi-remote dashboard</title>
 
     <!-- Markdown + syntax highlighting (load before Alpine) -->
@@ -358,7 +361,7 @@
         return {
           connected: true, version: "v0.2.1", uptime: "0m",
           sessions: [], selected: null, selectedInfo: null, events: [],
-          watching: false, eventSrc: null, autoScroll: true, apiKey: "",
+          watching: false, eventSrc: null, autoScroll: true, apiKey: "", watchActive: false,
           pollingInterval: null,
 
           init() {
@@ -383,7 +386,16 @@
                 if (this.selected) {
                   var cur = null;
                   for (var i = 0; i < this.sessions.length; i++) { if (this.sessions[i].sessionId === this.selected) { cur = this.sessions[i]; break; } }
-                  if (cur) { this.selectedInfo = cur; } else { this.selected = null; this.selectedInfo = null; this.closeWatch(); }
+                  if (cur) {
+                  this.selectedInfo = cur;
+                  // If watching a session that went inactive (HTTP cleanup), close the watch
+                  if (this.watching && !cur.active && !cur.isStreaming) {
+                    this.closeWatch();
+                    this.addSystemEvent("Session deactivated — watch ended.");
+                  }
+                } else {
+                  this.selected = null; this.selectedInfo = null; this.closeWatch();
+                }
                 }
               }.bind(this))
               .catch(function() {});
@@ -406,7 +418,17 @@
             this.eventSrc.addEventListener("tool_start", function(e) { try { var d = JSON.parse(e.data); self.addToolCall(d.id, d.tool, d.args); } catch(err) {} });
             this.eventSrc.addEventListener("tool_output", function(e) { try { var d = JSON.parse(e.data); self.appendToolOutput(d.output || ""); } catch(err) {} });
             this.eventSrc.addEventListener("tool_end", function(e) { try { var d = JSON.parse(e.data); self.finishToolCall(d.isError, d.result); } catch(err) {} });
-            this.eventSrc.addEventListener("done", function() { self.addSystemEvent("Telemetry stream finished: process inactive."); self.closeWatch(); self.loadDiagnostics(); });
+            this.eventSrc.addEventListener("done", function() {
+              if (self.selectedInfo && self.selectedInfo.active) {
+                // Session still alive (WebSocket) — keep watching for next prompt
+                self.addSystemEvent("Prompt completed — session still active, watching for next prompt...");
+              } else {
+                // Session deactivated (HTTP one-shot) — close out
+                self.addSystemEvent("Telemetry stream finished: process inactive.");
+                self.closeWatch();
+              }
+              self.loadDiagnostics();
+            });
             this.eventSrc.onerror = function() {};
           },
 
@@ -445,7 +467,26 @@
           },
 
           addSystemEvent(text) { this.events.push({ id: "sys_" + Date.now() + Math.random(), type: "info", time: this.getTimestamp(), text: text }); this.triggerScroll(); },
-          addHistoricalEvent(ev) { this.events.push({ id: "hist_" + Date.now() + Math.random(), type: "info", time: ev.ts ? new Date(ev.ts).toTimeString().slice(0,8) : this.getTimestamp(), text: formatEvent(ev) }); },
+          addHistoricalEvent(ev) {
+            if (ev.event === "message_complete" && ev.content && ev.role === "assistant") {
+              // Render each content part as a separate event for proper rich display
+              var ts = ev.ts ? new Date(ev.ts).toTimeString().slice(0,8) : this.getTimestamp();
+              var content = ev.content;
+              for (var ci = 0; ci < content.length; ci++) {
+                var part = content[ci];
+                if (part.type === "thinking") {
+                  this.events.push({ id: "hist_th_" + Date.now() + Math.random() + ci, type: "thinking", time: ts, text: part.text || "", expanded: false });
+                } else if (part.type === "text") {
+                  this.events.push({ id: "hist_tx_" + Date.now() + Math.random() + ci, type: "text", time: ts, text: part.text || "" });
+                } else if (part.type === "tool_call") {
+                  var argsStr = ""; try { argsStr = typeof part.args === "string" ? part.args : JSON.stringify(part.args, null, 2); } catch(e) { argsStr = String(part.args); }
+                  this.events.push({ id: "hist_tl_" + Date.now() + Math.random() + ci, type: "tool", time: ts, tool: part.name || "?", args: argsStr, output: part.output || "", status: part.isError ? "error" : "success", expanded: false });
+                }
+              }
+            } else {
+              this.events.push({ id: "hist_" + Date.now() + Math.random(), type: "info", time: ev.ts ? new Date(ev.ts).toTimeString().slice(0,8) : this.getTimestamp(), text: formatEvent(ev) });
+            }
+          },
 
           deleteSession() {
             var id = this.selected; if (!id) return; if (!confirm("Kill and erase session: " + id + "?")) return;
@@ -465,7 +506,7 @@
           triggerScroll() { this.scrollToBottom(); },
         };
       }
-      function formatEvent(ev) { var t = ev.event || ""; if (t === "session_created") return "Session initialized"; if (t === "session_deleted") return "Session deleted"; if (t === "chat_start") return 'Prompt received: "' + (ev.message || "") + '"'; if (t === "session_deactivated") return "Session deactivated (idle cleanup)"; return t; }
+      function formatEvent(ev) { var t = ev.event || ""; if (t === "session_created") return "Session initialized"; if (t === "session_deleted") return "Session deleted"; if (t === "chat_start") return 'Prompt received: "' + (ev.message || "") + '"'; if (t === "session_deactivated") return "Session deactivated (idle cleanup)"; if (t === "message_complete") return "Assistant response"; return t; }
     </script>
   </body>
 </html>

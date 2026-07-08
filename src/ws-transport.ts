@@ -22,6 +22,7 @@ import type { AuthProvider } from "./auth.js";
 import type { Logger } from "./logger.js";
 import { RpcAdapter } from "./rpc-adapter.js";
 import { EventLog } from "./event-log.js";
+import { MessageAccumulator } from "./message-accumulator.js";
 import type { SessionInfo } from "./types.js";
 
 const PROTOCOL_VERSION = 1;
@@ -520,6 +521,16 @@ export class WsTransport {
         try {
           const pi = await this.sessionManager.getProcess(sid);
 
+          // If prompt, start accumulating for persistence
+          const acc = commandType === "prompt" ? new MessageAccumulator(sid) : null;
+          if (commandType === "prompt") {
+            EventLog.append({
+              event: "chat_start",
+              sessionId: sid,
+              message: String((payload.message as string) || "").slice(0, 200),
+            });
+          }
+
           // Create adapter and subscribe events to this client
           const adapter = new RpcAdapter(pi);
           adapter.onEvent((event) => {
@@ -556,20 +567,16 @@ export class WsTransport {
               payload: event,
             });
 
-            // Track agent_end for session message count
+            // Feed accumulator for persistence
+            if (acc) acc.feed(event);
+
+            // Track agent_end for session message count + persist + cleanup
             if (event.type === "agent_end") {
               this.sessionManager.incrementMessages(sid);
+              if (acc) acc.flush();
+              adapter.dispose();
             }
           });
-
-          // If prompt, log it
-          if (commandType === "prompt") {
-            EventLog.append({
-              event: "chat_start",
-              sessionId: sid,
-              message: String((payload.message as string) || "").slice(0, 200),
-            });
-          }
 
           const response = await adapter.sendCommand(payload);
 

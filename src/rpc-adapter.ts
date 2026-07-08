@@ -28,14 +28,24 @@ export class RpcAdapter {
     }
   >();
   private eventHandler: RpcEventCallback | null = null;
+  private unsubscribe: () => void;
 
   constructor(pi: PiProcess) {
     this.pi = pi;
 
-    // Wire Pi's message stream
-    pi.onMessage((message) => {
+    // Wire Pi's message stream — store unsubscribe for cleanup
+    this.unsubscribe = pi.onMessage((message) => {
       this.handleMessage(message);
     });
+  }
+
+  /**
+   * Remove the message listener from PiProcess.
+   * Call when done to prevent stale listeners from accumulating.
+   */
+  dispose(): void {
+    this.unsubscribe();
+    this.eventHandler = null;
   }
 
   /**

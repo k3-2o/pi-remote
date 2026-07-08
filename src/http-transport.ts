@@ -36,6 +36,7 @@ import { RpcAdapter } from "./rpc-adapter.js";
 import type { AuthProvider } from "./auth.js";
 import type { Logger } from "./logger.js";
 import { EventLog } from "./event-log.js";
+import { MessageAccumulator } from "./message-accumulator.js";
 
 export class HttpTransport {
   private app: Hono;
@@ -411,10 +412,15 @@ export class HttpTransport {
     });
 
     try {
+      const acc = new MessageAccumulator(sessionId);
       const done = new Promise<void>((resolve) => {
         adapter.onEvent((event) => {
           this.sendSSEEvent(stream, event);
-          if (event.type === "agent_end") resolve();
+          acc.feed(event);
+          if (event.type === "agent_end") {
+            acc.flush();
+            resolve();
+          }
         });
       });
 
@@ -435,6 +441,7 @@ export class HttpTransport {
         data: JSON.stringify({ error: String(err) }),
       });
     } finally {
+      adapter.dispose();
       this.sessionManager.setStreaming(sessionId, false);
       this.sessionManager.incrementMessages(sessionId);
 
