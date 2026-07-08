@@ -83,7 +83,11 @@ describe("SessionManager", () => {
       const { manager, processManager } = createSessionManager();
       await manager.create("s1");
 
-      expect(processManager.getOrCreate).toHaveBeenCalledWith("s1", undefined, undefined);
+      expect(processManager.getOrCreate).toHaveBeenCalledWith(
+        "s1",
+        undefined,
+        undefined,
+      );
     });
 
     it("should assign unique auto-IDs across multiple creates", async () => {

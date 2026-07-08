@@ -8,7 +8,11 @@ Copy this file into your project. Requires: pip install websockets
 
     async def main():
         client = PiRemoteWS("ws://localhost:8080")
-        await client.connect()
+        # Connect with per-session system prompt (optional — omit for default)
+        await client.connect(
+            systemPrompt="You are a Discord bot that talks like a pirate.",
+            appendSystemPrompt=["Keep responses under 100 chars."],
+        )
 
         # Simple chat (auto-creates session on connect)
         result = await client.chat("fix the bug")
@@ -48,18 +52,23 @@ class PiRemoteWS:
 
     # ── Lifecycle ──────────────────────────────────────────
 
-    async def connect(self):
+    async def connect(self, systemPrompt=None, appendSystemPrompt=None):
         if self._connected:
             return self
 
         self.ws = await websockets.connect(self.url)
 
-        # Send hello handshake
-        await self.ws.send(json.dumps({
+        # Send hello handshake with optional per-session system prompt
+        hello = {
             "type": "hello",
             "protocolVersion": PROTOCOL_VERSION,
             "clientId": f"pi-remote-py-{int(time.time() * 1000)}",
-        }))
+        }
+        if systemPrompt is not None:
+            hello["systemPrompt"] = systemPrompt
+        if appendSystemPrompt is not None:
+            hello["appendSystemPrompt"] = appendSystemPrompt
+        await self.ws.send(json.dumps(hello))
 
         # Wait for welcome or error
         raw = await asyncio.wait_for(self.ws.recv(), timeout=10)

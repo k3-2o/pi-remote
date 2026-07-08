@@ -6,7 +6,11 @@
  *
  *   import { PiRemoteWS } from "./pi_remote_ws.mjs";
  *   const client = new PiRemoteWS("ws://localhost:8080");
- *   await client.connect();
+ *   // Connect with per-session system prompt (optional — omit for default)
+ *   await client.connect({
+ *     systemPrompt: "You are a Discord bot that talks like a pirate.",
+ *     appendSystemPrompt: ["Keep responses under 100 chars."],
+ *   });
  *
  *   // Simple chat (auto-creates session on connect)
  *   const result = await client.chat("fix the bug");
@@ -47,7 +51,7 @@ export class PiRemoteWS {
 
   // ── Lifecycle ──────────────────────────────────────────
 
-  async connect() {
+  async connect({ systemPrompt, appendSystemPrompt } = {}) {
     if (this.#connected) return;
 
     const ws = new WebSocket(this.#url);
@@ -60,14 +64,15 @@ export class PiRemoteWS {
       );
       ws.on("open", () => {
         clearTimeout(timer);
-        // Send hello handshake
-        ws.send(
-          JSON.stringify({
-            type: "hello",
-            protocolVersion: PROTOCOL_VERSION,
-            clientId: `pi-remote-js-${Date.now()}`,
-          }),
-        );
+        // Send hello handshake with optional per-session system prompt
+        const hello = {
+          type: "hello",
+          protocolVersion: PROTOCOL_VERSION,
+          clientId: `pi-remote-js-${Date.now()}`,
+        };
+        if (systemPrompt) hello.systemPrompt = systemPrompt;
+        if (appendSystemPrompt) hello.appendSystemPrompt = appendSystemPrompt;
+        ws.send(JSON.stringify(hello));
       });
       ws.on("message", (raw) => {
         const msg = JSON.parse(raw.toString());
