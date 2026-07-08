@@ -37,7 +37,7 @@ export interface PiProcessOptions {
 export class PiProcess {
   private proc: ChildProcess | null = null;
   private _state: PiProcessState = "stopped";
-  private messageHandler: PiMessageHandler | null = null;
+  private messageHandlers = new Set<PiMessageHandler>();
   private exitHandler: PiExitHandler | null = null;
   private stderrChunks: string[] = [];
   private buffer = "";
@@ -60,8 +60,30 @@ export class PiProcess {
     return this.proc?.pid;
   }
 
-  onMessage(handler: PiMessageHandler): void {
-    this.messageHandler = handler;
+  /**
+   * Register a message handler.
+   * Backward-compatible alias for addMessageListener.
+   */
+  onMessage(handler: PiMessageHandler): () => void {
+    return this.addMessageListener(handler);
+  }
+
+  /**
+   * Add a message listener. Multiple listeners are supported.
+   * Returns an unsubscribe function for cleanup.
+   */
+  addMessageListener(handler: PiMessageHandler): () => void {
+    this.messageHandlers.add(handler);
+    return () => {
+      this.messageHandlers.delete(handler);
+    };
+  }
+
+  /**
+   * Remove a previously registered message listener.
+   */
+  removeMessageListener(handler: PiMessageHandler): void {
+    this.messageHandlers.delete(handler);
   }
 
   onExit(handler: PiExitHandler): void {
@@ -218,7 +240,9 @@ export class PiProcess {
 
       try {
         const message = JSON.parse(line) as Record<string, unknown>;
-        this.messageHandler?.(message);
+        for (const handler of this.messageHandlers) {
+          handler(message);
+        }
       } catch {
         // Non-JSON lines from Pi (rare during startup). Ignore.
       }
