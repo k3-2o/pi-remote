@@ -77,6 +77,28 @@ pi-remote sessions
 
 Accepts `--port` and `--host` like `health`.
 
+### `attach`
+
+Open the browser dashboard in your default browser, or print connection instructions on headless servers.
+
+Calls `GET /v1/health` to verify the server is running first.
+
+**Desktop:** Opens `http://host:port/v1/ui` using `open` (macOS), `start` (Windows), or `xdg-open` (Linux).
+
+**Headless** (no `DISPLAY` on Linux, e.g. a VPS accessed via SSH): Prints the dashboard URL and the SSH tunnel command.
+
+```bash
+pi-remote attach
+# Desktop: opens browser
+# Headless:
+# → pi-remote dashboard: http://127.0.0.1:8080/v1/ui
+# → SSH tunnel: ssh my-server -L 8080:localhost:8080
+# → Then open http://localhost:8080/v1/ui
+
+pi-remote attach --port 9090
+pi-remote attach --host 10.0.0.5
+```
+
 ### `relay`
 
 Debug mode. Reads JSON-RPC commands from stdin, forwards to a Pi subprocess, writes responses to stdout. No server. No WebSocket. No HTTP.
