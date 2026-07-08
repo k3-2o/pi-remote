@@ -42,6 +42,8 @@ export class SessionManager {
     _cwd?: string,
     systemPrompt?: string,
     appendSystemPrompt?: string[],
+    noTools?: boolean,
+    tools?: string[],
   ): Promise<SessionInfo> {
     const id = sessionId ?? nanoid();
 
@@ -50,7 +52,7 @@ export class SessionManager {
     }
 
     // Create the Pi process (starts Pi in RPC mode)
-    await this.processManager.getOrCreate(id, systemPrompt, appendSystemPrompt);
+    await this.processManager.getOrCreate(id, systemPrompt, appendSystemPrompt, noTools, tools);
 
     const record: SessionRecord = {
       sessionId: id,
@@ -129,8 +131,10 @@ export class SessionManager {
   async createOnConnect(
     systemPrompt?: string,
     appendSystemPrompt?: string[],
+    noTools?: boolean,
+    tools?: string[],
   ): Promise<SessionInfo> {
-    return this.create(undefined, undefined, systemPrompt, appendSystemPrompt);
+    return this.create(undefined, undefined, systemPrompt, appendSystemPrompt, noTools, tools);
   }
 
   /**
