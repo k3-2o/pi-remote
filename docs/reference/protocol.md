@@ -22,20 +22,23 @@ Server → Client:  { type: "welcome", protocolVersion: 1, serverVersion: "0.2.1
 
 A session is auto-created on successful handshake. The `sessionId` is in the welcome message. No explicit session creation step.
 
-The `hello` message accepts two optional fields to set the session's system prompt — the equivalent of `--system-prompt` and `--append-system-prompt` on the Pi CLI:
+The `hello` message accepts optional fields to configure the session's system prompt and tool access — the equivalent of Pi CLI flags set per-connection:
 
-| Field | Type | Effect |
-|---|---|---|
-| `systemPrompt` | `string` | Replaces Pi's default system prompt for this session. Context files and skills still appended. |
-| `appendSystemPrompt` | `string[]` | Additional instructions appended to the system prompt. Repeatable — each entry becomes one `--append-system-prompt` flag. |
+| Field | Type | Effect | Flag equivalent |
+|---|---|---|---|
+| `systemPrompt` | `string` | Replaces Pi's default system prompt for this session. Context files and skills still appended. | `--system-prompt` |
+| `appendSystemPrompt` | `string[]` | Additional instructions appended to the system prompt. Repeatable — each entry becomes one `--append-system-prompt` flag. | `--append-system-prompt` |
+| `noTools` | `boolean` | Disable all tools (built-in and extension). Useful for public bots that shouldn't run commands. | `--no-tools` |
+| `tools` | `string[]` | Explicit allowlist of tool names. Only these tools will be available. | `--tools` (comma-separated) |
 
 ```
 Client → Server:  { type: "hello", protocolVersion: 1, clientId: "my-discord-bot",
                     systemPrompt: "You are a helpful Discord bot.",
-                    appendSystemPrompt: ["Keep responses short.", "Use emoji sparingly."] }
+                    appendSystemPrompt: ["Keep responses short.", "Use emoji sparingly."],
+                    noTools: true }
 ```
 
-These fields persist for the session's lifetime. RPC has no `set_system_prompt` command — the only way to set a per-session persona is here, at connect time.
+These fields persist for the session's lifetime. RPC has no `set_system_prompt` command — the only way to set a per-session persona or tool restrictions is here, at connect time.
 
 Errors during handshake:
 

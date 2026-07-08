@@ -22,7 +22,7 @@ These are not commands. They're WebSocket actions — making the connection exis
 
 | Method | What it does |
 |---|---|
-| `connect({ systemPrompt?, appendSystemPrompt? })` | Opens WebSocket, sends hello, waits for welcome. Creates a session automatically. Optional fields set the session's system prompt — equivalent of `--system-prompt` / `--append-system-prompt` on the Pi CLI. |
+| `connect({ systemPrompt?, appendSystemPrompt?, noTools?, tools? })` | Opens WebSocket, sends hello, waits for welcome. Creates a session automatically. Optional fields set per-connection system prompt and tool restrictions — equivalent of `--system-prompt` / `--append-system-prompt` / `--no-tools` / `--tools` on the Pi CLI. |
 | `close()` | Closes WebSocket. Server cleans up Pi process. You don't need to call this — server auto-cleans idle sessions. |
 | `isConnected` | Returns `true/false` |
 | `sessionId` | Your session's ID (set after connect) |

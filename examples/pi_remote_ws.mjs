@@ -6,10 +6,13 @@
  *
  *   import { PiRemoteWS } from "./pi_remote_ws.mjs";
  *   const client = new PiRemoteWS("ws://localhost:8080");
- *   // Connect with per-session system prompt (optional — omit for default)
+ *   // Connect with per-session config (optional — omit for defaults)
  *   await client.connect({
  *     systemPrompt: "You are a Discord bot that talks like a pirate.",
  *     appendSystemPrompt: ["Keep responses under 100 chars."],
+ *     noTools: true,           // disable all tools (public bot safety)
+ *     // or restrict to specific tools:
+ *     // tools: ["read", "bash"]
  *   });
  *
  *   // Simple chat (auto-creates session on connect)
@@ -51,7 +54,7 @@ export class PiRemoteWS {
 
   // ── Lifecycle ──────────────────────────────────────────
 
-  async connect({ systemPrompt, appendSystemPrompt } = {}) {
+  async connect({ systemPrompt, appendSystemPrompt, noTools, tools } = {}) {
     if (this.#connected) return;
 
     const ws = new WebSocket(this.#url);
@@ -72,6 +75,8 @@ export class PiRemoteWS {
         };
         if (systemPrompt) hello.systemPrompt = systemPrompt;
         if (appendSystemPrompt) hello.appendSystemPrompt = appendSystemPrompt;
+        if (noTools !== undefined) hello.noTools = noTools;
+        if (tools) hello.tools = tools;
         ws.send(JSON.stringify(hello));
       });
       ws.on("message", (raw) => {
