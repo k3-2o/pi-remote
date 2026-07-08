@@ -4,6 +4,8 @@ A step-by-step guide from a bare Ubuntu server to a production pi-remote behind 
 
 By the end, you'll have pi-remote accessible at `wss://pi.yourdomain.com` — ready for Discord bots, webhooks, cron jobs, or anything else that needs to talk to Pi over the network.
 
+> **Not sure which host to pick?** See [Deployment Paths](../reference/deployment-paths.md) for a comparison of VPS providers, tunnel alternatives (Tailscale / Cloudflare Tunnel), and bare metal options — with a full breakdown of what each handles so you can choose the right path before starting.
+
 ---
 
 ## What you're building
