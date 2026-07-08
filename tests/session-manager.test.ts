@@ -87,6 +87,8 @@ describe("SessionManager", () => {
         "s1",
         undefined,
         undefined,
+        undefined,
+        undefined,
       );
     });
 
