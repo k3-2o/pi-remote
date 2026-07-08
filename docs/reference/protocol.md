@@ -22,6 +22,21 @@ Server → Client:  { type: "welcome", protocolVersion: 1, serverVersion: "0.2.1
 
 A session is auto-created on successful handshake. The `sessionId` is in the welcome message. No explicit session creation step.
 
+The `hello` message accepts two optional fields to set the session's system prompt — the equivalent of `--system-prompt` and `--append-system-prompt` on the Pi CLI:
+
+| Field | Type | Effect |
+|---|---|---|
+| `systemPrompt` | `string` | Replaces Pi's default system prompt for this session. Context files and skills still appended. |
+| `appendSystemPrompt` | `string[]` | Additional instructions appended to the system prompt. Repeatable — each entry becomes one `--append-system-prompt` flag. |
+
+```
+Client → Server:  { type: "hello", protocolVersion: 1, clientId: "my-discord-bot",
+                    systemPrompt: "You are a helpful Discord bot.",
+                    appendSystemPrompt: ["Keep responses short.", "Use emoji sparingly."] }
+```
+
+These fields persist for the session's lifetime. RPC has no `set_system_prompt` command — the only way to set a per-session persona is here, at connect time.
+
 Errors during handshake:
 
 | Error code | When |

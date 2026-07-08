@@ -22,6 +22,24 @@ Bot:  Switched to claude-sonnet-4-20250514
 
 ---
 
+## Setting your bot's personality (system prompt)
+
+By default, Pi has a coding-assistant persona. If you want your Discord bot to have a different personality — a pirate, a therapist, a sarcastic tech support agent — you can pass a **system prompt** when connecting. This is the equivalent of `--system-prompt` and `--append-system-prompt` on the Pi CLI.
+
+```js
+// Your bot acts like a pirate
+await pi.connect({
+  systemPrompt: "You are a helpful Discord bot that talks like a pirate.",
+  appendSystemPrompt: ["Use nautical metaphors.", "Keep responses under 200 chars."],
+});
+```
+
+The `systemPrompt` replaces Pi's default. `appendSystemPrompt` stacks additional instructions on top — Pi's tools and capabilities are preserved either way.
+
+This only affects *this* session. Another bot connected to the same pi-remote with a different `systemPrompt` gets its own persona, completely isolated.
+
+---
+
 ## Prerequisites
 
 - pi-remote **running** either locally or on a remote server (see [Your First Chat](../tutorials/your-first-chat.md))
