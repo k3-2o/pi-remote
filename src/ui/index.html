@@ -4,9 +4,53 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pi-remote dashboard</title>
+
+    <!-- Markdown + syntax highlighting (load before Alpine) -->
+    <script src="https://unpkg.com/marked@12.0.2/marked.min.js"></script>
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css"
+    />
+    <script>
+      if (typeof marked !== "undefined" && typeof hljs !== "undefined") {
+        marked.use({
+          renderer: {
+            code(text, lang) {
+              var language = (lang || "").match(/^\S*/)[0];
+              if (language && hljs.getLanguage(language)) {
+                try {
+                  var highlighted = hljs.highlight(text, {
+                    language: language,
+                  }).value;
+                  return (
+                    '<pre><code class="hljs language-' +
+                    language +
+                    '">' +
+                    highlighted +
+                    "</code></pre>"
+                  );
+                } catch (e) {}
+              }
+              return (
+                '<pre><code>' +
+                marked.parseInline(text) +
+                "</code></pre>"
+              );
+            },
+          },
+        });
+      }
+
+      function renderMd(text) {
+        if (!text) return "";
+        return marked.parse(text);
+      }
+    </script>
+
     <script src="https://unpkg.com/alpinejs@3.14.8" defer></script>
+
     <style>
-      /* Premium Dark Theme Variables (GitHub/VSCode Dark inspired) */
       :root {
         --bg-main: #0b0e14;
         --bg-sidebar: #11151c;
@@ -17,558 +61,151 @@
         --text-primary: #f0f6fc;
         --text-secondary: #8b949e;
         --text-muted: #484f58;
-
         --color-green: #3fb950;
         --color-yellow: #d29922;
         --color-blue: #58a6ff;
         --color-purple: #bc8cff;
         --color-red: #f85149;
       }
-
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-          Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background: var(--bg-main);
         color: var(--text-primary);
         font-size: 13px;
         line-height: 1.5;
         overflow: hidden;
       }
+      .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+      .pulse { animation: pulse-kf 2s infinite; }
+      @keyframes pulse-kf { 0%{opacity:0.4} 50%{opacity:1} 100%{opacity:0.4} }
 
-      /* Utility Styles */
-      .mono {
-        font-family:
-          "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
-          Consolas, monospace;
-      }
-      .pulse {
-        animation: pulse-kf 2s infinite;
-      }
-      @keyframes pulse-kf {
-        0% {
-          opacity: 0.4;
-        }
-        50% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0.4;
-        }
-      }
-
-      /* Status Bar */
       .status-bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 16px;
-        height: 40px;
-        background: var(--bg-sidebar);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px; height: 40px; background: var(--bg-sidebar);
         border-bottom: 1px solid var(--border-color);
       }
-      .status-left,
-      .status-right {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .status-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .status-title {
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-      .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-      }
-      .status-dot.online {
-        background: var(--color-green);
-        box-shadow: 0 0 6px var(--color-green);
-      }
-      .status-dot.offline {
-        background: var(--color-red);
-        box-shadow: 0 0 6px var(--color-red);
-      }
-      .status-text {
-        font-size: 12px;
-        color: var(--text-secondary);
-      }
-      .status-sep {
-        color: var(--text-muted);
-      }
+      .status-left, .status-right { display: flex; align-items: center; gap: 12px; }
+      .status-item { display: flex; align-items: center; gap: 6px; }
+      .status-title { font-weight: 600; color: var(--text-primary); }
+      .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+      .status-dot.online { background: var(--color-green); box-shadow: 0 0 6px var(--color-green); }
+      .status-dot.offline { background: var(--color-red); box-shadow: 0 0 6px var(--color-red); }
+      .status-text { font-size: 12px; color: var(--text-secondary); }
+      .status-sep { color: var(--text-muted); }
 
-      /* Auth Settings Input */
       .auth-input-wrapper {
-        display: flex;
-        align-items: center;
-        background: var(--bg-main);
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        padding: 2px 6px;
+        display: flex; align-items: center; background: var(--bg-main);
+        border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 6px;
       }
-      .auth-input {
-        background: none;
-        border: none;
-        outline: none;
-        color: var(--text-primary);
-        font-size: 11px;
-        width: 140px;
-      }
-      .auth-input::placeholder {
-        color: var(--text-muted);
-      }
+      .auth-input { background: none; border: none; outline: none; color: var(--text-primary); font-size: 11px; width: 140px; }
+      .auth-input::placeholder { color: var(--text-muted); }
 
-      /* App Layout */
-      .app-container {
-        display: flex;
-        height: calc(100vh - 40px);
-      }
+      .app-container { display: flex; height: calc(100vh - 40px); }
 
-      /* Sidebar */
-      .sidebar {
-        width: 320px;
-        min-width: 320px;
-        background: var(--bg-sidebar);
-        border-right: 1px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-      }
-      .sidebar-header {
-        padding: 12px 16px 8px;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-secondary);
-        border-bottom: 1px solid rgba(33, 38, 45, 0.5);
-      }
-      .session-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 8px;
-      }
-      .session-card {
-        display: flex;
-        flex-direction: column;
-        padding: 10px 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        margin-bottom: 4px;
-        border: 1px solid transparent;
-        transition:
-          background-color 0.15s ease,
-          border-color 0.15s ease;
-      }
-      .session-card:hover {
-        background: var(--bg-row-hover);
-      }
-      .session-card.selected {
-        background: var(--bg-row-selected);
-        border-color: rgba(88, 166, 255, 0.2);
-      }
-      .session-card-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 4px;
-      }
-      .session-card-id {
-        font-weight: 500;
-        color: var(--text-primary);
-        max-width: 170px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .session-card-status {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-      }
-      .session-card-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-      }
-      .session-card-dot.streaming {
-        background: var(--color-green);
-        box-shadow: 0 0 6px var(--color-green);
-      }
-      .session-card-dot.active {
-        background: var(--color-blue);
-      }
-      .session-card-dot.idle {
-        background: var(--text-secondary);
-      }
-      .session-card-dot.deactivated {
-        background: var(--text-muted);
-      }
-      .session-card-bottom {
-        display: flex;
-        justify-content: space-between;
-        font-size: 11px;
-        color: var(--text-secondary);
-      }
+      .sidebar { width: 320px; min-width: 320px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+      .sidebar-header { padding: 12px 16px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); border-bottom: 1px solid rgba(33,38,45,0.5); }
+      .session-list { flex: 1; overflow-y: auto; padding: 8px; }
+      .session-card { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; transition: background-color 0.15s, border-color 0.15s; }
+      .session-card:hover { background: var(--bg-row-hover); }
+      .session-card.selected { background: var(--bg-row-selected); border-color: rgba(88,166,255,0.2); }
+      .session-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+      .session-card-id { font-weight: 500; color: var(--text-primary); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .session-card-status { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+      .session-card-dot { width: 6px; height: 6px; border-radius: 50%; }
+      .session-card-dot.streaming { background: var(--color-green); box-shadow: 0 0 6px var(--color-green); }
+      .session-card-dot.active { background: var(--color-blue); }
+      .session-card-dot.idle { background: var(--text-secondary); }
+      .session-card-dot.deactivated { background: var(--text-muted); }
+      .session-card-bottom { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+      .sidebar-footer { padding: 10px 16px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-secondary); background: rgba(17,21,28,0.8); }
 
-      .sidebar-footer {
-        padding: 10px 16px;
-        border-top: 1px solid var(--border-color);
-        font-size: 11px;
-        color: var(--text-secondary);
-        background: rgba(17, 21, 28, 0.8);
-      }
+      .empty-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-secondary); background: var(--bg-main); gap: 8px; padding: 40px; text-align: center; }
+      .empty-view h3 { color: var(--text-primary); font-weight: 500; font-size: 16px; }
+      .empty-view p { max-width: 320px; font-size: 12px; }
 
-      /* Empty / Welcome View */
-      .empty-view {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-secondary);
-        background: var(--bg-main);
-        gap: 8px;
-        padding: 40px;
-        text-align: center;
-      }
-      .empty-view h3 {
-        color: var(--text-primary);
-        font-weight: 500;
-        font-size: 16px;
-      }
-      .empty-view p {
-        max-width: 320px;
-        font-size: 12px;
-      }
+      .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); overflow: hidden; }
+      .workspace-header { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); }
+      .workspace-meta { display: flex; align-items: center; gap: 12px; }
+      .workspace-id { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+      .workspace-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; }
+      .workspace-badge.streaming { background: rgba(63,185,80,0.15); color: var(--color-green); }
+      .workspace-badge.active { background: rgba(88,166,255,0.15); color: var(--color-blue); }
+      .workspace-badge.idle { background: rgba(139,148,158,0.15); color: var(--text-secondary); }
+      .workspace-badge.deactivated { background: rgba(72,79,88,0.2); color: var(--text-muted); }
+      .workspace-stats { font-size: 11px; color: var(--text-secondary); display: flex; gap: 12px; }
 
-      /* Workspace Detail Panel */
-      .workspace {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background: var(--bg-main);
-        overflow: hidden;
-      }
-      .workspace-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 48px;
-        padding: 0 20px;
-        background: var(--bg-panel);
-        border-bottom: 1px solid var(--border-color);
-      }
-      .workspace-meta {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .workspace-id {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-      .workspace-badge {
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 10px;
-        text-transform: uppercase;
-      }
-      .workspace-badge.streaming {
-        background: rgba(63, 185, 80, 0.15);
-        color: var(--color-green);
-      }
-      .workspace-badge.active {
-        background: rgba(88, 166, 255, 0.15);
-        color: var(--color-blue);
-      }
-      .workspace-badge.idle {
-        background: rgba(139, 148, 158, 0.15);
-        color: var(--text-secondary);
-      }
-      .workspace-badge.deactivated {
-        background: rgba(72, 79, 88, 0.2);
-        color: var(--text-muted);
-      }
-      .workspace-stats {
-        font-size: 11px;
-        color: var(--text-secondary);
-        display: flex;
-        gap: 12px;
-      }
+      .log-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; position: relative; }
+      .log-item { display: flex; flex-direction: column; margin-bottom: 4px; }
+      .log-meta { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+      .log-content { white-space: pre-wrap; font-size: 13px; border-radius: 4px; }
+      .log-item.info .log-content { color: var(--text-secondary); font-style: italic; font-size: 12px; }
+      .log-item.text .log-content { color: var(--text-primary); padding: 4px 0; }
 
-      /* Output Log Area */
-      .log-container {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        position: relative;
-      }
+      .thinking-box { background: rgba(210,153,34,0.04); border-left: 2px solid var(--color-yellow); border-radius: 0 4px 4px 0; margin: 4px 0; }
+      .thinking-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; cursor: pointer; font-size: 11px; color: var(--color-yellow); user-select: none; }
+      .thinking-header:hover { background: rgba(210,153,34,0.08); }
+      .thinking-body { padding: 8px 12px; border-top: 1px solid rgba(210,153,34,0.1); color: var(--text-secondary); font-style: italic; font-size: 12px; white-space: pre-wrap; }
 
-      /* Log items */
-      .log-item {
-        display: flex;
-        flex-direction: column;
-        margin-bottom: 4px;
-      }
-      .log-meta {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 10px;
-        color: var(--text-muted);
-        margin-bottom: 2px;
-      }
-      .log-content {
-        white-space: pre-wrap;
-        font-size: 13px;
-        border-radius: 4px;
-      }
+      .tool-box { background: rgba(188,140,255,0.03); border: 1px solid rgba(188,140,255,0.15); border-left: 3px solid var(--color-purple); border-radius: 4px; margin: 6px 0; }
+      .tool-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; color: var(--color-purple); cursor: pointer; user-select: none; }
+      .tool-header:hover { background: rgba(188,140,255,0.08); }
+      .tool-name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+      .tool-status-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 500; text-transform: uppercase; }
+      .tool-status-badge.running { background: rgba(210,153,34,0.15); color: var(--color-yellow); }
+      .tool-status-badge.success { background: rgba(63,185,80,0.15); color: var(--color-green); }
+      .tool-status-badge.error { background: rgba(248,81,73,0.15); color: var(--color-red); }
+      .tool-body { padding: 10px 12px; border-top: 1px solid rgba(188,140,255,0.1); font-size: 11px; background: rgba(11,14,20,0.4); }
+      .tool-section { margin-bottom: 8px; }
+      .tool-section:last-child { margin-bottom: 0; }
+      .tool-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px; font-weight: 600; }
+      .tool-val { white-space: pre-wrap; color: var(--text-primary); }
 
-      /* Message types */
-      .log-item.info .log-content {
-        color: var(--text-secondary);
-        font-style: italic;
-        font-size: 12px;
-      }
-      .log-item.text .log-content {
-        color: var(--text-primary);
-        padding: 4px 0;
-      }
+      .workspace-actions { height: 48px; padding: 0 20px; background: var(--bg-panel); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: flex-end; }
+      .btn-kill { background: none; border: 1px solid var(--border-color); color: var(--color-red); padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 12px; transition: background-color 0.15s, border-color 0.15s; }
+      .btn-kill:hover { background: rgba(248,81,73,0.1); border-color: var(--color-red); }
 
-      /* Collapsible Thinking Block */
-      .thinking-box {
-        background: rgba(210, 153, 34, 0.04);
-        border-left: 2px solid var(--color-yellow);
-        border-radius: 0 4px 4px 0;
-        margin: 4px 0;
-      }
-      .thinking-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px 12px;
-        cursor: pointer;
-        font-size: 11px;
-        color: var(--color-yellow);
-        user-select: none;
-      }
-      .thinking-header:hover {
-        background: rgba(210, 153, 34, 0.08);
-      }
-      .thinking-body {
-        padding: 8px 12px;
-        border-top: 1px solid rgba(210, 153, 34, 0.1);
-        color: var(--text-secondary);
-        font-style: italic;
-        font-size: 12px;
-        white-space: pre-wrap;
-      }
+      .scroll-btn { position: absolute; bottom: 20px; right: 20px; background: rgba(33,38,45,0.9); border: 1px solid var(--border-color); color: var(--color-blue); padding: 6px 12px; border-radius: 16px; cursor: pointer; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 4px; transition: opacity 0.2s; }
+      .scroll-btn:hover { background: var(--bg-row-hover); }
 
-      /* Tool Call Display */
-      .tool-box {
-        background: rgba(188, 140, 255, 0.03);
-        border: 1px solid rgba(188, 140, 255, 0.15);
-        border-left: 3px solid var(--color-purple);
-        border-radius: 4px;
-        margin: 6px 0;
-      }
-      .tool-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 12px;
-        font-size: 12px;
-        color: var(--color-purple);
-        cursor: pointer;
-        user-select: none;
-      }
-      .tool-header:hover {
-        background: rgba(188, 140, 255, 0.08);
-      }
-      .tool-name {
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .tool-status-badge {
-        font-size: 10px;
-        padding: 1px 6px;
-        border-radius: 8px;
-        font-weight: 500;
-        text-transform: uppercase;
-      }
-      .tool-status-badge.running {
-        background: rgba(210, 153, 34, 0.15);
-        color: var(--color-yellow);
-      }
-      .tool-status-badge.success {
-        background: rgba(63, 185, 80, 0.15);
-        color: var(--color-green);
-      }
-      .tool-status-badge.error {
-        background: rgba(248, 81, 73, 0.15);
-        color: var(--color-red);
-      }
+      .disconnected-curtain { position: fixed; inset: 0; background: rgba(11,14,20,0.85); backdrop-filter: blur(4px); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+      .disconnected-box { background: var(--bg-panel); border: 1px solid var(--border-color); border-top: 3px solid var(--color-red); border-radius: 6px; padding: 24px; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+      .disconnected-box h2 { color: var(--color-red); font-size: 16px; margin-bottom: 8px; font-weight: 600; }
+      .disconnected-box p { color: var(--text-secondary); font-size: 12px; margin-bottom: 16px; }
+      .btn-retry { background: var(--color-blue); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; }
+      .btn-retry:hover { opacity: 0.9; }
 
-      .tool-body {
-        padding: 10px 12px;
-        border-top: 1px solid rgba(188, 140, 255, 0.1);
-        font-size: 11px;
-        background: rgba(11, 14, 20, 0.4);
-      }
-      .tool-section {
-        margin-bottom: 8px;
-      }
-      .tool-section:last-child {
-        margin-bottom: 0;
-      }
-      .tool-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        color: var(--text-secondary);
-        margin-bottom: 2px;
-        font-weight: 600;
-      }
-      .tool-val {
-        white-space: pre-wrap;
-        color: var(--text-primary);
-      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 
-      /* Workspace Action Footer */
-      .workspace-actions {
-        height: 48px;
-        padding: 0 20px;
-        background: var(--bg-panel);
-        border-top: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-      }
-      .btn-kill {
-        background: none;
-        border: 1px solid var(--border-color);
-        color: var(--color-red);
-        padding: 6px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        font-size: 12px;
-        transition:
-          background-color 0.15s ease,
-          border-color 0.15s ease;
-      }
-      .btn-kill:hover {
-        background: rgba(248, 81, 73, 0.1);
-        border-color: var(--color-red);
-      }
-
-      /* Floating Scroll Assist */
-      .scroll-btn {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(33, 38, 45, 0.9);
-        border: 1px solid var(--border-color);
-        color: var(--color-blue);
-        padding: 6px 12px;
-        border-radius: 16px;
-        cursor: pointer;
-        font-size: 11px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        transition: opacity 0.2s;
-      }
-      .scroll-btn:hover {
-        background: var(--bg-row-hover);
-      }
-
-      /* Disconnected Overlay */
-      .disconnected-curtain {
-        position: fixed;
-        inset: 0;
-        background: rgba(11, 14, 20, 0.85);
-        backdrop-filter: blur(4px);
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-      }
-      .disconnected-box {
-        background: var(--bg-panel);
-        border: 1px solid var(--border-color);
-        border-top: 3px solid var(--color-red);
-        border-radius: 6px;
-        padding: 24px;
-        width: 320px;
-        text-align: center;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      }
-      .disconnected-box h2 {
-        color: var(--color-red);
-        font-size: 16px;
-        margin-bottom: 8px;
-        font-weight: 600;
-      }
-      .disconnected-box p {
-        color: var(--text-secondary);
-        font-size: 12px;
-        margin-bottom: 16px;
-      }
-      .btn-retry {
-        background: var(--color-blue);
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 12px;
-      }
-      .btn-retry:hover {
-        opacity: 0.9;
-      }
-
-      /* Scrollbar Customization */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #30363d;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #484f58;
-      }
+      .markdown-body { font-size: 13px; line-height: 1.6; }
+      .markdown-body > :first-child { margin-top: 0; }
+      .markdown-body > :last-child { margin-bottom: 0; }
+      .markdown-body p { margin: 8px 0; }
+      .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: 16px 0 8px; font-weight: 600; line-height: 1.25; }
+      .markdown-body h1 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
+      .markdown-body h2 { font-size: 1.3em; border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
+      .markdown-body h3 { font-size: 1.15em; }
+      .markdown-body h4 { font-size: 1em; }
+      .markdown-body ul, .markdown-body ol { margin: 8px 0; padding-left: 28px; }
+      .markdown-body li { margin: 2px 0; }
+      .markdown-body code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 4px; padding: 1px 5px; }
+      .markdown-body pre { background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+      .markdown-body pre code { background: none; border: none; padding: 0; font-size: 0.88em; line-height: 1.5; }
+      .markdown-body blockquote { margin: 8px 0; padding: 4px 14px; border-left: 3px solid var(--color-blue); color: var(--text-secondary); }
+      .markdown-body a { color: var(--color-blue); text-decoration: none; }
+      .markdown-body a:hover { text-decoration: underline; }
+      .markdown-body table { border-collapse: collapse; margin: 10px 0; display: block; overflow-x: auto; }
+      .markdown-body th, .markdown-body td { border: 1px solid var(--border-color); padding: 6px 12px; text-align: left; }
+      .markdown-body th { background: var(--bg-sidebar); font-weight: 600; }
+      .markdown-body hr { border: none; border-top: 1px solid var(--border-color); margin: 14px 0; }
     </style>
   </head>
+
   <body>
     <div x-data="dashboard()" x-init="init()">
-      <!-- Server Connection Loss State -->
       <div class="disconnected-curtain" x-show="!connected">
         <div class="disconnected-box">
           <h2>Offline</h2>
@@ -577,95 +214,52 @@
         </div>
       </div>
 
-      <!-- Main Status Bar -->
       <header class="status-bar">
         <div class="status-left">
           <span class="status-title">pi-remote</span>
           <span class="status-sep">·</span>
           <div class="status-item">
-            <span
-              class="status-dot"
-              :class="connected ? 'online' : 'offline'"
-            ></span>
-            <span
-              class="status-text"
-              x-text="connected ? 'live' : 'disconnected'"
-            ></span>
+            <span class="status-dot" :class="connected ? 'online' : 'offline'"></span>
+            <span class="status-text" x-text="connected ? 'live' : 'disconnected'"></span>
           </div>
           <span class="status-sep">·</span>
           <span class="status-text mono" x-text="version">v0.0.0</span>
           <span class="status-sep">·</span>
           <span class="status-text" x-text="'uptime: ' + uptime">up 0m</span>
         </div>
-
         <div class="status-right">
           <div class="status-item">
-            <span class="status-text" style="font-size: 11px">API Key:</span>
+            <span class="status-text" style="font-size:11px">API Key:</span>
             <div class="auth-input-wrapper">
-              <input
-                type="password"
-                class="auth-input mono"
-                placeholder="None required"
-                x-model="apiKey"
-                @change="saveApiKey()"
-              />
+              <input type="password" class="auth-input mono" placeholder="None required" x-model="apiKey" @change="saveApiKey()" />
             </div>
           </div>
         </div>
       </header>
 
-      <!-- App Workspace -->
       <main class="app-container">
-        <!-- Sidebar: Sessions List -->
         <section class="sidebar">
           <div class="sidebar-header">Active Sessions</div>
           <div class="session-list">
-            <!-- Empty session list -->
             <template x-if="sessions.length === 0">
-              <div
-                style="
-                  padding: 32px 16px;
-                  color: var(--text-muted);
-                  text-align: center;
-                "
-              >
-                No sessions active.<br />
-                Send a prompt using curl, SDK, or integration to see session
-                diagnostics.
+              <div style="padding:32px 16px;color:var(--text-muted);text-align:center">
+                No sessions active.<br/>
+                Send a prompt using curl, SDK, or integration to see session diagnostics.
               </div>
             </template>
-
-            <!-- Sessions iterate -->
             <template x-if="sessions.length > 0">
               <div>
                 <template x-for="s in sessions" :key="s.sessionId">
-                  <div
-                    class="session-card"
-                    :class="selected === s.sessionId ? 'selected' : ''"
-                    @click="select(s.sessionId)"
-                  >
+                  <div class="session-card" :class="selected === s.sessionId ? 'selected' : ''" @click="select(s.sessionId)">
                     <div class="session-card-top">
-                      <span
-                        class="session-card-id mono"
-                        x-text="s.sessionId"
-                      ></span>
+                      <span class="session-card-id mono" x-text="s.sessionId"></span>
                       <div class="session-card-status">
-                        <span
-                          class="session-card-dot"
-                          :class="s.active ? (s.isStreaming ? 'streaming pulse' : 'active') : 'deactivated'"
-                        ></span>
-                        <span
-                          class="mono"
-                          style="font-size: 10px"
-                          :style="s.isStreaming ? 'color: var(--color-green); font-weight:600;' : ''"
-                          x-text="s.active ? (s.isStreaming ? 'STREAMING' : 'ACTIVE') : 'IDLE'"
-                        ></span>
+                        <span class="session-card-dot" :class="s.active ? (s.isStreaming ? 'streaming pulse' : 'active') : 'deactivated'"></span>
+                        <span class="mono" style="font-size:10px" :style="s.isStreaming ? 'color:var(--color-green);font-weight:600' : ''" x-text="s.active ? (s.isStreaming ? 'STREAMING' : 'ACTIVE') : 'IDLE'"></span>
                       </div>
                     </div>
                     <div class="session-card-bottom">
-                      <span
-                        x-text="s.messageCount + ' prompt' + (s.messageCount !== 1 ? 's' : '')"
-                      ></span>
+                      <span x-text="s.messageCount + ' prompt' + (s.messageCount !== 1 ? 's' : '')"></span>
                       <span x-text="timeAgo(s.createdAt)"></span>
                     </div>
                   </div>
@@ -673,213 +267,85 @@
               </div>
             </template>
           </div>
-
           <div class="sidebar-footer">
-            <span
-              x-text="activeCount() + ' running · ' + sessions.length + ' total in memory'"
-            ></span>
+            <span x-text="activeCount() + ' running · ' + sessions.length + ' total in memory'"></span>
           </div>
         </section>
 
-        <!-- Content Workspace Detail -->
         <section class="workspace">
-          <!-- Welcome empty state -->
           <template x-if="!selected">
             <div class="empty-view">
               <h3>No Session Selected</h3>
-              <p>
-                Choose an active or historical session from the sidebar to
-                inspect thinking trace, event sequence, and tool execution logs.
-              </p>
+              <p>Choose an active or historical session from the sidebar to inspect thinking trace, event sequence, and tool execution logs.</p>
             </div>
           </template>
 
-          <!-- Selected Session Detail Workspace -->
           <template x-if="selected">
-            <div
-              style="
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                overflow: hidden;
-              "
-            >
+            <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
               <header class="workspace-header">
                 <div class="workspace-meta">
                   <span class="workspace-id mono" x-text="selected"></span>
-                  <span
-                    class="workspace-badge"
-                    :class="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'"
-                    x-text="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'"
-                  ></span>
+                  <span class="workspace-badge" :class="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'" x-text="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'"></span>
                 </div>
                 <div class="workspace-stats">
-                  <span
-                    x-text="'Uptime Level: ' + (selectedInfo?.thinkingLevel ?? 'medium')"
-                  ></span>
+                  <span x-text="'Uptime Level: ' + (selectedInfo?.thinkingLevel ?? 'medium')"></span>
                   <span class="status-sep">·</span>
-                  <span
-                    x-text="'Created: ' + formatIso(selectedInfo?.createdAt)"
-                  ></span>
+                  <span x-text="'Created: ' + formatIso(selectedInfo?.createdAt)"></span>
                 </div>
               </header>
 
-              <!-- Output logs viewport -->
-              <div
-                class="log-container"
-                x-ref="logViewport"
-                @scroll="handleScroll()"
-              >
+              <div class="log-container" x-ref="logViewport" @scroll="handleScroll()">
                 <template x-for="ev in events" :key="ev.id">
                   <div>
-                    <!-- Text Message Item -->
                     <template x-if="ev.type === 'text'">
                       <div class="log-item text">
-                        <div class="log-meta">
-                          <span class="mono" x-text="ev.time"></span>
-                          <span>·</span>
-                          <span>ASSISTANT TOKEN</span>
-                        </div>
-                        <div class="log-content" x-text="ev.text"></div>
+                        <div class="log-meta"><span class="mono" x-text="ev.time"></span><span>·</span><span>ASSISTANT</span></div>
+                        <div class="log-content markdown-body" x-html="renderMd(ev.text)"></div>
                       </div>
                     </template>
-
-                    <!-- Information/System Lifecycle Item -->
                     <template x-if="ev.type === 'info'">
                       <div class="log-item info">
-                        <div class="log-meta">
-                          <span class="mono" x-text="ev.time"></span>
-                          <span>·</span>
-                          <span>SYSTEM TRACE</span>
-                        </div>
+                        <div class="log-meta"><span class="mono" x-text="ev.time"></span><span>·</span><span>SYSTEM TRACE</span></div>
                         <div class="log-content" x-text="ev.text"></div>
                       </div>
                     </template>
-
-                    <!-- Collapsible Thinking Area -->
                     <template x-if="ev.type === 'thinking'">
                       <div class="thinking-box">
-                        <div
-                          class="thinking-header"
-                          @click="ev.expanded = !ev.expanded"
-                        >
-                          <span
-                            style="
-                              font-weight: 600;
-                              display: flex;
-                              align-items: center;
-                              gap: 4px;
-                            "
-                          >
-                            <span x-text="ev.expanded ? '▼' : '▶'"></span>
-                            Reasoning Process
-                          </span>
-                          <span
-                            class="mono"
-                            style="font-size: 10px"
-                            x-text="ev.time"
-                          ></span>
+                        <div class="thinking-header" @click="ev.expanded = !ev.expanded">
+                          <span style="font-weight:600;display:flex;align-items:center;gap:4px"><span x-text="ev.expanded ? '▼' : '▶'"></span> Reasoning Process</span>
+                          <span class="mono" style="font-size:10px" x-text="ev.time"></span>
                         </div>
-                        <div
-                          class="thinking-body"
-                          x-show="ev.expanded"
-                          x-text="ev.text"
-                        ></div>
+                        <div class="thinking-body markdown-body" x-show="ev.expanded" x-html="renderMd(ev.text || '')"></div>
                       </div>
                     </template>
-
-                    <!-- Collapsible Tool Box -->
                     <template x-if="ev.type === 'tool'">
                       <div class="tool-box">
-                        <div
-                          class="tool-header"
-                          @click="ev.expanded = !ev.expanded"
-                        >
-                          <div class="tool-name">
-                            <span x-text="ev.expanded ? '▼' : '▶'"></span>
-                            <span>🔧 Tool call:</span>
-                            <span
-                              class="mono"
-                              style="
-                                font-weight: bold;
-                                color: var(--text-primary);
-                              "
-                              x-text="ev.tool"
-                            ></span>
-                          </div>
-                          <div
-                            style="display: flex; align-items: center; gap: 8px"
-                          >
-                            <span
-                              class="tool-status-badge"
-                              :class="ev.status"
-                              x-text="ev.status"
-                            ></span>
-                            <span
-                              class="mono"
-                              style="font-size: 10px"
-                              x-text="ev.time"
-                            ></span>
+                        <div class="tool-header" @click="ev.expanded = !ev.expanded">
+                          <div class="tool-name"><span x-text="ev.expanded ? '▼' : '▶'"></span><span>🔧 Tool call:</span><span class="mono" style="font-weight:bold;color:var(--text-primary)" x-text="ev.tool"></span></div>
+                          <div style="display:flex;align-items:center;gap:8px">
+                            <span class="tool-status-badge" :class="ev.status" x-text="ev.status"></span>
+                            <span class="mono" style="font-size:10px" x-text="ev.time"></span>
                           </div>
                         </div>
-
                         <div class="tool-body" x-show="ev.expanded">
-                          <div class="tool-section">
-                            <div class="tool-label">Arguments</div>
-                            <div class="tool-val mono" x-text="ev.args"></div>
-                          </div>
-                          <template x-if="ev.output">
-                            <div class="tool-section" style="margin-top: 8px">
-                              <div class="tool-label">Result</div>
-                              <div
-                                class="tool-val mono"
-                                style="
-                                  color: var(--text-secondary);
-                                  max-height: 200px;
-                                  overflow-y: auto;
-                                "
-                                x-text="ev.output"
-                              ></div>
-                            </div>
-                          </template>
+                          <div class="tool-section"><div class="tool-label">Arguments</div><div class="tool-val mono" x-text="ev.args"></div></div>
+                          <template x-if="ev.output"><div class="tool-section" style="margin-top:8px"><div class="tool-label">Result</div><div class="tool-val mono" style="color:var(--text-secondary);max-height:200px;overflow-y:auto" x-text="ev.output"></div></div></template>
                         </div>
                       </div>
                     </template>
                   </div>
                 </template>
 
-                <!-- Loading stream indicator -->
-                <div
-                  x-show="watching"
-                  style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    color: var(--text-muted);
-                    padding: 24px 0;
-                    font-size: 12px;
-                  "
-                >
+                <div x-show="watching" style="display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-muted);padding:24px 0;font-size:12px">
                   <span class="status-dot online pulse"></span>
                   <span class="pulse">Observing live telemetry...</span>
                 </div>
 
-                <!-- Scroll assist floating button -->
-                <button
-                  class="scroll-btn"
-                  x-show="!autoScroll"
-                  @click="scrollToBottom(true)"
-                >
-                  ⬇ Scroll to bottom
-                </button>
+                <button class="scroll-btn" x-show="!autoScroll" @click="scrollToBottom(true)">⬇ Scroll to bottom</button>
               </div>
 
-              <!-- Bottom Kill Form bar -->
               <footer class="workspace-actions">
-                <button class="btn-kill" @click="deleteSession()">
-                  ✕ Kill & Erase Session
-                </button>
+                <button class="btn-kill" @click="deleteSession()">✕ Kill & Erase Session</button>
               </footer>
             </div>
           </template>
@@ -890,399 +356,116 @@
     <script>
       function dashboard() {
         return {
-          connected: true,
-          version: "v0.2.1",
-          uptime: "0m",
-          sessions: [],
-          selected: null,
-          selectedInfo: null,
-          events: [],
-          watching: false,
-          eventSrc: null,
-          autoScroll: true,
-          apiKey: "",
+          connected: true, version: "v0.2.1", uptime: "0m",
+          sessions: [], selected: null, selectedInfo: null, events: [],
+          watching: false, eventSrc: null, autoScroll: true, apiKey: "",
           pollingInterval: null,
 
           init() {
-            // Load API key from local storage
             this.apiKey = localStorage.getItem("pi_remote_apikey") || "";
-
             this.loadDiagnostics();
-
-            // Polling loop
-            this.pollingInterval = setInterval(() => {
-              this.loadDiagnostics();
-            }, 3000);
+            this.pollingInterval = setInterval(() => { this.loadDiagnostics(); }, 3000);
           },
 
-          getHeaders() {
-            const h = { "Content-Type": "application/json" };
-            if (this.apiKey) {
-              h["Authorization"] = `Bearer ${this.apiKey}`;
-            }
-            return h;
-          },
-
-          saveApiKey() {
-            localStorage.setItem("pi_remote_apikey", this.apiKey);
-            this.loadDiagnostics();
-          },
+          getHeaders() { var h = { "Content-Type": "application/json" }; if (this.apiKey) h["Authorization"] = "Bearer " + this.apiKey; return h; },
+          saveApiKey() { localStorage.setItem("pi_remote_apikey", this.apiKey); this.loadDiagnostics(); },
 
           loadDiagnostics() {
-            // Load health metrics
             fetch("/v1/health", { headers: this.getHeaders() })
-              .then((r) => {
-                if (r.status === 401) throw new Error("Unauthorized");
-                return r.json();
-              })
-              .then((d) => {
-                this.connected = true;
-                this.version = "v" + (d.version || "0.2.1");
-                const u = Math.floor(d.uptime || 0);
-                const h = Math.floor(u / 3600);
-                const m = Math.floor((u % 3600) / 60);
-                const s = u % 60;
-                this.uptime = h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
-              })
-              .catch(() => {
-                this.connected = false;
-              });
-
+              .then(function(r) { if (r.status === 401) throw Error("Unauthorized"); return r.json(); })
+              .then(function(d) { this.connected = true; this.version = "v" + (d.version || "0.2.1"); var u = Math.floor(d.uptime || 0); this.uptime = Math.floor(u/3600) + "h " + Math.floor((u%3600)/60) + "m"; }.bind(this))
+              .catch(function() { this.connected = false; }.bind(this));
             if (!this.connected) return;
-
-            // Load sessions list
             fetch("/v1/sessions", { headers: this.getHeaders() })
-              .then((r) => r.json())
-              .then((d) => {
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
                 this.sessions = d.sessions || [];
-
-                // Sync selected info
                 if (this.selected) {
-                  const current = this.sessions.find(
-                    (s) => s.sessionId === this.selected,
-                  );
-                  if (current) {
-                    this.selectedInfo = current;
-                  } else {
-                    // Session deleted externally
-                    this.selected = null;
-                    this.selectedInfo = null;
-                    this.closeWatch();
-                  }
+                  var cur = null;
+                  for (var i = 0; i < this.sessions.length; i++) { if (this.sessions[i].sessionId === this.selected) { cur = this.sessions[i]; break; } }
+                  if (cur) { this.selectedInfo = cur; } else { this.selected = null; this.selectedInfo = null; this.closeWatch(); }
                 }
-              })
-              .catch(() => {});
+              }.bind(this))
+              .catch(function() {});
           },
 
           select(id) {
-            this.closeWatch();
-            this.events = [];
-            this.selected = id;
-            this.selectedInfo =
-              this.sessions.find((s) => s.sessionId === id) || null;
+            this.closeWatch(); this.events = []; this.selected = id; this.selectedInfo = null;
+            for (var i = 0; i < this.sessions.length; i++) { if (this.sessions[i].sessionId === id) { this.selectedInfo = this.sessions[i]; break; } }
             this.autoScroll = true;
-
-            // 1. Fetch event log history
-            fetch(`/v1/sessions/${id}/log?limit=50`, {
-              headers: this.getHeaders(),
-            })
-              .then((r) => r.json())
-              .then((d) => {
-                if (d.events) {
-                  d.events.forEach((ev) => {
-                    this.addHistoricalEvent(ev);
-                  });
-                  this.triggerScroll();
-                }
-              })
-              .catch(() => {});
-
-            // 2. Setup Watch EventSource
-            const watchUrl = `/v1/sessions/${id}/watch`;
-            const url = this.apiKey
-              ? `${watchUrl}?apikey=${encodeURIComponent(this.apiKey)}`
-              : watchUrl;
-            this.eventSrc = new EventSource(url);
-            this.watching = true;
-
-            this.eventSrc.addEventListener("thinking", (e) => {
-              try {
-                const d = JSON.parse(e.data);
-                this.appendThinking(d.thinking || "");
-              } catch {}
-            });
-
-            this.eventSrc.addEventListener("token", (e) => {
-              try {
-                const d = JSON.parse(e.data);
-                this.appendText(d.text || "");
-              } catch {}
-            });
-
-            this.eventSrc.addEventListener("tool_start", (e) => {
-              try {
-                const d = JSON.parse(e.data);
-                this.addToolCall(d.id, d.tool, d.args);
-              } catch {}
-            });
-
-            this.eventSrc.addEventListener("tool_output", (e) => {
-              try {
-                const d = JSON.parse(e.data);
-                this.appendToolOutput(d.output || "");
-              } catch {}
-            });
-
-            this.eventSrc.addEventListener("tool_end", (e) => {
-              try {
-                const d = JSON.parse(e.data);
-                this.finishToolCall(d.isError, d.result);
-              } catch {}
-            });
-
-            this.eventSrc.addEventListener("done", () => {
-              this.addSystemEvent(
-                "Telemetry stream finished: process inactive.",
-              );
-              this.closeWatch();
-              this.loadDiagnostics();
-            });
-
-            this.eventSrc.onerror = () => {
-              // SSE auto-reconnects, but if session inactive, it closes gracefully
-            };
+            fetch("/v1/sessions/" + id + "/log?limit=50", { headers: this.getHeaders() })
+              .then(function(r) { return r.json(); })
+              .then(function(d) { if (d.events) { for (var i = 0; i < d.events.length; i++) { this.addHistoricalEvent(d.events[i]); } this.triggerScroll(); } }.bind(this))
+              .catch(function() {});
+            var watchUrl = "/v1/sessions/" + id + "/watch";
+            var url = this.apiKey ? watchUrl + "?apikey=" + encodeURIComponent(this.apiKey) : watchUrl;
+            this.eventSrc = new EventSource(url); this.watching = true;
+            var self = this;
+            this.eventSrc.addEventListener("thinking", function(e) { try { var d = JSON.parse(e.data); self.appendThinking(d.thinking || ""); } catch(err) {} });
+            this.eventSrc.addEventListener("token", function(e) { try { var d = JSON.parse(e.data); self.appendText(d.text || ""); } catch(err) {} });
+            this.eventSrc.addEventListener("tool_start", function(e) { try { var d = JSON.parse(e.data); self.addToolCall(d.id, d.tool, d.args); } catch(err) {} });
+            this.eventSrc.addEventListener("tool_output", function(e) { try { var d = JSON.parse(e.data); self.appendToolOutput(d.output || ""); } catch(err) {} });
+            this.eventSrc.addEventListener("tool_end", function(e) { try { var d = JSON.parse(e.data); self.finishToolCall(d.isError, d.result); } catch(err) {} });
+            this.eventSrc.addEventListener("done", function() { self.addSystemEvent("Telemetry stream finished: process inactive."); self.closeWatch(); self.loadDiagnostics(); });
+            this.eventSrc.onerror = function() {};
           },
 
-          closeWatch() {
-            this.watching = false;
-            if (this.eventSrc) {
-              this.eventSrc.close();
-              this.eventSrc = null;
-            }
-          },
+          closeWatch() { this.watching = false; if (this.eventSrc) { this.eventSrc.close(); this.eventSrc = null; } },
 
-          // Append sequential thinking blocks
           appendThinking(text) {
-            const last = this.events[this.events.length - 1];
-            if (last && last.type === "thinking") {
-              last.text += text;
-            } else {
-              this.events.push({
-                id: "ev_" + Date.now() + Math.random(),
-                type: "thinking",
-                time: this.getTimestamp(),
-                text: text,
-                expanded: true,
-              });
-            }
+            var last = this.events[this.events.length - 1];
+            if (last && last.type === "thinking") { last.text += text; }
+            else { this.events.push({ id: "ev_" + Date.now() + Math.random(), type: "thinking", time: this.getTimestamp(), text: text, expanded: true }); }
             this.triggerScroll();
           },
 
-          // Append text response
           appendText(text) {
-            const last = this.events[this.events.length - 1];
-            if (last && last.type === "text") {
-              last.text += text;
-            } else {
-              this.events.push({
-                id: "ev_" + Date.now() + Math.random(),
-                type: "text",
-                time: this.getTimestamp(),
-                text: text,
-              });
-            }
+            var last = this.events[this.events.length - 1];
+            if (last && last.type === "text") { last.text += text; }
+            else { this.events.push({ id: "ev_" + Date.now() + Math.random(), type: "text", time: this.getTimestamp(), text: text }); }
             this.triggerScroll();
           },
 
-          // Add structured Tool Call
           addToolCall(callId, toolName, args) {
-            let argsStr = "";
-            try {
-              argsStr =
-                typeof args === "string" ? args : JSON.stringify(args, null, 2);
-            } catch {
-              argsStr = String(args);
-            }
-
-            this.events.push({
-              id: callId || "tool_" + Date.now() + Math.random(),
-              type: "tool",
-              time: this.getTimestamp(),
-              tool: toolName,
-              args: argsStr,
-              output: "",
-              status: "running",
-              expanded: true,
-            });
+            var argsStr = ""; try { argsStr = typeof args === "string" ? args : JSON.stringify(args, null, 2); } catch(e) { argsStr = String(args); }
+            this.events.push({ id: callId || "tool_" + Date.now(), type: "tool", time: this.getTimestamp(), tool: toolName, args: argsStr, output: "", status: "running", expanded: true });
             this.triggerScroll();
           },
 
-          // Add tool output chunks
-          appendToolOutput(output) {
-            const last = this.events
-              .slice()
-              .reverse()
-              .find((e) => e.type === "tool");
-            if (last) {
-              last.output += output;
-              this.triggerScroll();
-            }
-          },
-
-          // Complete tool call
+          appendToolOutput(output) { for (var i = this.events.length - 1; i >= 0; i--) { if (this.events[i].type === "tool") { this.events[i].output += output; this.triggerScroll(); break; } } },
           finishToolCall(isError, result) {
-            const last = this.events
-              .slice()
-              .reverse()
-              .find((e) => e.type === "tool");
-            if (last) {
-              last.status = isError ? "error" : "success";
-              if (result !== undefined && result !== null) {
-                let resStr = "";
-                try {
-                  resStr =
-                    typeof result === "string"
-                      ? result
-                      : JSON.stringify(result, null, 2);
-                } catch {
-                  resStr = String(result);
-                }
-                last.output = resStr;
+            for (var i = this.events.length - 1; i >= 0; i--) {
+              if (this.events[i].type === "tool") {
+                this.events[i].status = isError ? "error" : "success";
+                if (result !== null && result !== undefined) { var r = ""; try { r = typeof result === "string" ? result : JSON.stringify(result, null, 2); } catch(e) { r = String(result); } this.events[i].output = r; }
+                if (!isError) this.events[i].expanded = false;
+                this.triggerScroll(); break;
               }
-              if (!isError) {
-                last.expanded = false; // Collapse successful tool executions to keep screen clean
-              }
-              this.triggerScroll();
             }
           },
 
-          // Post simple system trace lines
-          addSystemEvent(text) {
-            this.events.push({
-              id: "sys_" + Date.now() + Math.random(),
-              type: "info",
-              time: this.getTimestamp(),
-              text: text,
-            });
-            this.triggerScroll();
-          },
-
-          // Hydrate from log files
-          addHistoricalEvent(ev) {
-            const formattedText = formatEvent(ev);
-            const timeStr = ev.ts
-              ? new Date(ev.ts).toTimeString().slice(0, 8)
-              : this.getTimestamp();
-            this.events.push({
-              id: "hist_" + Date.now() + Math.random(),
-              type: "info",
-              time: timeStr,
-              text: formattedText,
-            });
-          },
+          addSystemEvent(text) { this.events.push({ id: "sys_" + Date.now() + Math.random(), type: "info", time: this.getTimestamp(), text: text }); this.triggerScroll(); },
+          addHistoricalEvent(ev) { this.events.push({ id: "hist_" + Date.now() + Math.random(), type: "info", time: ev.ts ? new Date(ev.ts).toTimeString().slice(0,8) : this.getTimestamp(), text: formatEvent(ev) }); },
 
           deleteSession() {
-            const id = this.selected;
-            if (!id) return;
-            if (
-              !confirm(
-                `Are you sure you want to kill and erase session: ${id}?`,
-              )
-            )
-              return;
-
-            fetch(`/v1/sessions/${id}`, {
-              method: "DELETE",
-              headers: this.getHeaders(),
-            })
-              .then((r) => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                return r.json();
-              })
-              .then(() => {
-                this.selected = null;
-                this.selectedInfo = null;
-                this.events = [];
-                this.closeWatch();
-                this.loadDiagnostics();
-              })
-              .catch((err) => {
-                alert(`Error deleting session: ${err.message}`);
-              });
+            var id = this.selected; if (!id) return; if (!confirm("Kill and erase session: " + id + "?")) return;
+            fetch("/v1/sessions/" + id, { method: "DELETE", headers: this.getHeaders() })
+              .then(function(r) { if (!r.ok) throw Error("HTTP " + r.status); return r.json(); })
+              .then(function() { this.selected = null; this.selectedInfo = null; this.events = []; this.closeWatch(); this.loadDiagnostics(); }.bind(this))
+              .catch(function(err) { alert("Error: " + err.message); });
           },
 
-          activeCount() {
-            return this.sessions.filter((s) => s.active).length;
-          },
-
-          timeAgo(iso) {
-            if (!iso) return "";
-            const ms = Date.now() - new Date(iso).getTime();
-            const s = Math.floor(ms / 1000);
-            if (s < 60) return "just now";
-            if (s < 3600) return Math.floor(s / 60) + "m ago";
-            if (s < 86400) return Math.floor(s / 3600) + "h ago";
-            return Math.floor(s / 86400) + "d ago";
-          },
-
-          formatIso(iso) {
-            if (!iso) return "";
-            return iso.slice(0, 19).replace("T", " ");
-          },
-
-          getTimestamp() {
-            return new Date().toTimeString().slice(0, 8);
-          },
-
-          retry() {
-            this.connected = true;
-            this.init();
-          },
-
-          handleScroll() {
-            const el = this.$refs.logViewport;
-            if (!el) return;
-            // If client scrolled away from bottom by more than 40px, pause autoscroll
-            const threshold = 40;
-            const atBottom =
-              el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-            this.autoScroll = atBottom;
-          },
-
-          scrollToBottom(force = false) {
-            if (force) this.autoScroll = true;
-            this.$nextTick(() => {
-              const el = this.$refs.logViewport;
-              if (el && this.autoScroll) {
-                el.scrollTop = el.scrollHeight;
-              }
-            });
-          },
-
-          triggerScroll() {
-            this.scrollToBottom();
-          },
+          activeCount() { return this.sessions.filter(function(s) { return s.active; }).length; },
+          timeAgo(iso) { if (!iso) return ""; var ms = Date.now() - new Date(iso).getTime(); var s = Math.floor(ms/1000); if (s<60) return "just now"; if (s<3600) return Math.floor(s/60)+"m ago"; if (s<86400) return Math.floor(s/3600)+"h ago"; return Math.floor(s/86400)+"d ago"; },
+          formatIso(iso) { if (!iso) return ""; return iso.slice(0,19).replace("T"," "); },
+          getTimestamp() { return new Date().toTimeString().slice(0,8); },
+          retry() { this.connected = true; this.init(); },
+          handleScroll() { var el = this.$refs.logViewport; if (!el) return; this.autoScroll = el.scrollHeight - el.scrollTop - el.clientHeight < 40; },
+          scrollToBottom(force) { if (force) this.autoScroll = true; var self = this; this.$nextTick(function() { var el = self.$refs.logViewport; if (el && self.autoScroll) el.scrollTop = el.scrollHeight; }); },
+          triggerScroll() { this.scrollToBottom(); },
         };
       }
-
-      // Formatting helpers
-      function formatEvent(ev) {
-        const t = ev.event || "";
-        if (t === "session_created") return "Session initialized";
-        if (t === "session_deleted") return "Session deleted";
-        if (t === "chat_start")
-          return 'Prompt received: "' + (ev.message || "") + '"';
-        if (t === "session_deactivated")
-          return "Session deactivated (idle cleanup / process freed)";
-        return t;
-      }
-
-      function escHtml(s) {
-        if (!s) return "";
-        const d = document.createElement("div");
-        d.textContent = s;
-        return d.innerHTML;
-      }
+      function formatEvent(ev) { var t = ev.event || ""; if (t === "session_created") return "Session initialized"; if (t === "session_deleted") return "Session deleted"; if (t === "chat_start") return 'Prompt received: "' + (ev.message || "") + '"'; if (t === "session_deactivated") return "Session deactivated (idle cleanup)"; return t; }
     </script>
   </body>
 </html>
