@@ -99,6 +99,8 @@ pi-remote attach --port 9090
 pi-remote attach --host 10.0.0.5
 ```
 
+> **PS:** The dashboard is for viewing only. Pi extension dialogs (`confirm`, `select`, `input`) don't appear here — the SSE watch drops `extension_ui_request` events. If you need to handle those, use the WebSocket SDK.
+
 ### `relay`
 
 Debug mode. Reads JSON-RPC commands from stdin, forwards to a Pi subprocess, writes responses to stdout. No server. No WebSocket. No HTTP.
