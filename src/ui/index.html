@@ -97,12 +97,7 @@
       .status-text { font-size: 12px; color: var(--text-secondary); }
       .status-sep { color: var(--text-muted); }
 
-      .auth-input-wrapper {
-        display: flex; align-items: center; background: var(--bg-main);
-        border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 6px;
-      }
-      .auth-input { background: none; border: none; outline: none; color: var(--text-primary); font-size: 11px; width: 140px; }
-      .auth-input::placeholder { color: var(--text-muted); }
+
 
       .app-container { display: flex; height: calc(100vh - 40px); }
 
@@ -285,7 +280,7 @@
                   <span class="workspace-badge" :class="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'" x-text="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'"></span>
                 </div>
                 <div class="workspace-stats">
-                  <span x-text="'Uptime Level: ' + (selectedInfo?.thinkingLevel ?? 'medium')"></span>
+                  <span x-text="'Thinking Level: ' + (selectedInfo?.thinkingLevel ?? 'medium')"></span>
                   <span class="status-sep">·</span>
                   <span x-text="'Created: ' + formatIso(selectedInfo?.createdAt)"></span>
                 </div>
