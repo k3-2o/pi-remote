@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pi-remote</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/alpinejs@3.14.8" defer></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+        font-size: 14px;
+      }
+      a {
+        color: #58a6ff;
+      }
+
+      /* Status bar */
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 16px;
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+        font-size: 13px;
+      }
+      .status .name {
+        font-weight: 600;
+        color: #f0f6fc;
+      }
+      .status .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .status .dot.live {
+        background: #3fb950;
+      }
+      .status .dot.dead {
+        background: #f85149;
+      }
+      .status .sep {
+        color: #30363d;
+      }
+      .status .stat {
+        color: #8b949e;
+      }
+
+      /* Layout */
+      .main {
+        display: flex;
+        height: calc(100vh - 41px);
+      }
+      .sidebar {
+        width: 360px;
+        min-width: 360px;
+        border-right: 1px solid #30363d;
+        overflow-y: auto;
+        background: #0d1117;
+      }
+      .detail {
+        flex: 1;
+        overflow-y: auto;
+        background: #0d1117;
+      }
+
+      /* Session list */
+      .sessions {
+        padding: 8px;
+      }
+      .sessions h3 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #8b949e;
+        padding: 8px 8px 4px;
+      }
+      .session-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .session-row:hover {
+        background: #161b22;
+      }
+      .session-row.selected {
+        background: #1f2937;
+      }
+      .session-row .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .session-row .dot.active {
+        background: #3fb950;
+        box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
+      }
+      .session-row .dot.idle {
+        background: #8b949e;
+      }
+      .session-row .dot.done {
+        background: #30363d;
+      }
+      .session-row .dot.error {
+        background: #f85149;
+      }
+      .session-row .info {
+        flex: 1;
+        min-width: 0;
+      }
+      .session-row .id {
+        font-size: 13px;
+        color: #f0f6fc;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .session-row .meta {
+        font-size: 11px;
+        color: #8b949e;
+        margin-top: 1px;
+      }
+      .session-row .msgs {
+        font-size: 11px;
+        color: #8b949e;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .summary {
+        font-size: 11px;
+        color: #8b949e;
+        padding: 8px;
+        border-top: 1px solid #21262d;
+        margin-top: 4px;
+      }
+
+      /* Detail panel */
+      .detail-panel {
+        padding: 16px;
+      }
+      .detail-panel .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+      }
+      .detail-panel .header .id {
+        font-size: 15px;
+        font-weight: 600;
+        color: #f0f6fc;
+      }
+      .detail-panel .header .badge {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 12px;
+      }
+      .detail-panel .header .badge.active {
+        background: rgba(63, 185, 80, 0.15);
+        color: #3fb950;
+      }
+      .detail-panel .header .badge.idle {
+        background: rgba(139, 148, 158, 0.15);
+        color: #8b949e;
+      }
+      .detail-panel .header .badge.done {
+        background: rgba(48, 54, 61, 0.3);
+        color: #484f58;
+      }
+      .detail-panel .meta {
+        font-size: 12px;
+        color: #8b949e;
+        margin-bottom: 12px;
+      }
+      .detail-panel .meta span {
+        margin-right: 16px;
+      }
+      .detail-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #484f58;
+        font-size: 15px;
+      }
+
+      /* Event stream */
+      .events {
+        font-family:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .events .ev {
+        padding: 4px 8px;
+        border-left: 2px solid transparent;
+        margin: 2px 0;
+      }
+      .events .ev:hover {
+        background: #161b22;
+      }
+      .events .ev.thinking {
+        border-left-color: #d29922;
+        color: #d29922;
+      }
+      .events .ev.token {
+        border-left-color: #58a6ff;
+        color: #c9d1d9;
+      }
+      .events .ev.tool_start {
+        border-left-color: #bc8cff;
+        color: #bc8cff;
+      }
+      .events .ev.tool_output {
+        border-left-color: #3fb950;
+        color: #8b949e;
+        font-size: 12px;
+      }
+      .events .ev.tool_end {
+        border-left-color: #3fb950;
+        color: #3fb950;
+      }
+      .events .ev.done {
+        border-left-color: #3fb950;
+        color: #3fb950;
+        font-weight: 600;
+      }
+      .events .ev.error {
+        border-left-color: #f85149;
+        color: #f85149;
+      }
+      .events .ev.info {
+        border-left-color: #8b949e;
+        color: #8b949e;
+      }
+      .events .ev .time {
+        color: #484f58;
+        margin-right: 8px;
+        font-size: 11px;
+      }
+
+      /* Delete button */
+      .btn-del {
+        background: none;
+        border: 1px solid #30363d;
+        color: #f85149;
+        padding: 4px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .btn-del:hover {
+        background: rgba(248, 81, 73, 0.1);
+        border-color: #f85149;
+      }
+
+      /* Disconnected overlay */
+      .disconnected {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(13, 17, 23, 0.85);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .disconnected.show {
+        display: flex;
+      }
+      .disconnected h2 {
+        color: #f85149;
+      }
+      .disconnected p {
+        color: #8b949e;
+      }
+      .disconnected button {
+        background: #21262d;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        padding: 8px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .disconnected button:hover {
+        background: #30363d;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0d1117;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div x-data="dashboard()" x-init="init()">
+      <!-- Disconnected overlay -->
+      <div class="disconnected" x-bind:class="connected ? '' : 'show'">
+        <h2>Disconnected</h2>
+        <p>Could not reach pi-remote server</p>
+        <button @click="retry()">Retry</button>
+      </div>
+
+      <!-- Status bar -->
+      <div
+        class="status"
+        hx-get="/v1/health"
+        hx-trigger="every 10s"
+        hx-target="this"
+        hx-swap="outerHTML"
+        hx-ext="alpine-morph"
+      >
+        <span class="name">pi-remote</span>
+        <span class="dot live"></span>
+        <span class="stat">live</span>
+        <span class="sep">·</span>
+        <span class="stat" x-text="version">v0.2.1</span>
+        <span class="sep">·</span>
+        <span class="stat" x-text="'up ' + uptime"></span>
+      </div>
+
+      <div class="main">
+        <!-- Sidebar: session list -->
+        <div
+          class="sidebar"
+          hx-get="/v1/sessions"
+          hx-trigger="every 5s"
+          hx-target="this"
+          hx-swap="innerHTML"
+        >
+          <div class="sessions" x-data="{ selected: null }">
+            <template x-if="sessions.length === 0">
+              <div
+                style="
+                  padding: 24px 16px;
+                  color: #484f58;
+                  text-align: center;
+                  font-size: 13px;
+                "
+              >
+                No sessions.<br />
+                Start pi-remote and send a prompt to see it here.
+              </div>
+            </template>
+            <template x-if="sessions.length > 0">
+              <div>
+                <h3>Sessions</h3>
+                <template x-for="s in sessions" :key="s.sessionId">
+                  <div
+                    class="session-row"
+                    x-bind:class="selected === s.sessionId ? 'selected' : ''"
+                    @click="select(s.sessionId)"
+                  >
+                    <span
+                      class="dot"
+                      x-bind:class="s.active ? (s.isStreaming ? 'active' : 'idle') : 'done'"
+                    ></span>
+                    <div class="info">
+                      <div
+                        class="id"
+                        x-text="s.sessionId.slice(0, 12) + '...'"
+                      ></div>
+                      <div class="meta">
+                        <span
+                          x-text="s.active ? (s.isStreaming ? 'streaming' : 'active') : 'done'"
+                        ></span>
+                        <span x-text="'created ' + timeAgo(s.createdAt)"></span>
+                      </div>
+                    </div>
+                    <div class="msgs" x-text="s.messageCount + ' msgs'"></div>
+                  </div>
+                </template>
+                <div
+                  class="summary"
+                  x-text="activeCount() + ' active · ' + sessions.length + ' total'"
+                ></div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Detail panel -->
+        <div class="detail" x-ref="detail">
+          <template x-if="!selected">
+            <div class="detail-empty">Select a session to watch</div>
+          </template>
+          <template x-if="selected">
+            <div class="detail-panel">
+              <div class="header">
+                <div>
+                  <div class="id" x-text="selectedId"></div>
+                  <div class="meta">
+                    <span
+                      x-text="'messages: ' + (selectedInfo?.messageCount ?? 0)"
+                    ></span>
+                    <span
+                      x-text="'created: ' + (selectedInfo?.createdAt ?? '').slice(0, 19).replace('T', ' ')"
+                    ></span>
+                  </div>
+                </div>
+                <div>
+                  <span
+                    class="badge"
+                    x-bind:class="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'active' : 'idle') : 'done'"
+                    x-text="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'done'"
+                  ></span>
+                </div>
+              </div>
+              <div class="events" x-ref="events">
+                <template x-for="ev in events" :key="ev.id">
+                  <div class="ev" x-bind:class="ev.type">
+                    <span class="time" x-text="ev.time"></span>
+                    <span x-html="ev.html"></span>
+                  </div>
+                </template>
+                <div
+                  x-show="watching"
+                  style="
+                    color: #484f58;
+                    font-size: 12px;
+                    padding: 8px;
+                    text-align: center;
+                  "
+                >
+                  <span x-text="watching ? 'listening...' : ''"></span>
+                </div>
+              </div>
+              <div
+                style="
+                  margin-top: 12px;
+                  padding-top: 12px;
+                  border-top: 1px solid #21262d;
+                "
+              >
+                <button
+                  class="btn-del"
+                  hx-delete="/v1/sessions/"
+                  hx-vals="js:{id: selectedId}"
+                  hx-target="closest .detail"
+                  hx-swap="innerHTML"
+                  hx-confirm="Delete this session?"
+                >
+                  ✕ Delete session
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function dashboard() {
+        return {
+          connected: true,
+          version: "v0.2.1",
+          uptime: "0m",
+          sessions: [],
+          selected: null,
+          selectedId: "",
+          selectedInfo: null,
+          events: [],
+          watching: false,
+          eventSrc: null,
+
+          init() {
+            this.loadHealth();
+            this.loadSessions();
+          },
+
+          loadHealth() {
+            fetch("/v1/health")
+              .then((r) => r.json())
+              .then((d) => {
+                this.connected = true;
+                this.version = "v" + (d.version || "0.2.1");
+                const u = Math.floor(d.uptime || 0);
+                const h = Math.floor(u / 3600);
+                const m = Math.floor((u % 3600) / 60);
+                this.uptime = h > 0 ? h + "h " + m + "m" : m + "m";
+              })
+              .catch(() => {
+                this.connected = false;
+              });
+          },
+
+          loadSessions() {
+            fetch("/v1/sessions")
+              .then((r) => r.json())
+              .then((d) => {
+                this.sessions = d.sessions || [];
+                // Update selectedInfo if a session is selected
+                if (this.selected) {
+                  this.selectedInfo =
+                    this.sessions.find((s) => s.sessionId === this.selected) ||
+                    null;
+                }
+              })
+              .catch(() => {});
+          },
+
+          select(id) {
+            // Close previous SSE
+            if (this.eventSrc) {
+              this.eventSrc.close();
+              this.eventSrc = null;
+            }
+            this.watching = false;
+            this.events = [];
+            this.selected = id;
+            this.selectedId = id.slice(0, 12) + "...";
+            this.selectedInfo =
+              this.sessions.find((s) => s.sessionId === id) || null;
+
+            // Add history from event log
+            fetch("/v1/sessions/" + id + "/log?limit=20")
+              .then((r) => r.json())
+              .then((d) => {
+                if (d.events) {
+                  for (const ev of d.events) {
+                    this.addEvent("info", formatEvent(ev));
+                  }
+                }
+              })
+              .catch(() => {});
+
+            // Open SSE watch
+            this.eventSrc = new EventSource("/v1/sessions/" + id + "/watch");
+            this.watching = true;
+
+            this.eventSrc.addEventListener("thinking", (e) => {
+              try {
+                const d = JSON.parse(e.data);
+                this.addEvent("thinking", d.thinking || "(thinking)");
+              } catch {}
+            });
+
+            this.eventSrc.addEventListener("token", (e) => {
+              try {
+                const d = JSON.parse(e.data);
+                this.addEvent("token", d.text || "");
+              } catch {}
+            });
+
+            this.eventSrc.addEventListener("tool_start", (e) => {
+              try {
+                const d = JSON.parse(e.data);
+                this.addEvent(
+                  "tool_start",
+                  "Tool: " +
+                    (d.tool || "?") +
+                    (d.args ? " " + JSON.stringify(d.args).slice(0, 100) : ""),
+                );
+              } catch {}
+            });
+
+            this.eventSrc.addEventListener("tool_output", (e) => {
+              try {
+                const d = JSON.parse(e.data);
+                const out = (d.output || "").toString();
+                this.addEvent(
+                  "tool_output",
+                  out.slice(0, 200) + (out.length > 200 ? "..." : ""),
+                );
+              } catch {}
+            });
+
+            this.eventSrc.addEventListener("tool_end", (e) => {
+              try {
+                const d = JSON.parse(e.data);
+                this.addEvent(
+                  "tool_end",
+                  d.isError ? "Error: " + (d.result || "") : "Done",
+                );
+              } catch {}
+            });
+
+            this.eventSrc.addEventListener("done", () => {
+              this.addEvent("done", "Agent finished");
+              this.watching = false;
+              if (this.eventSrc) {
+                this.eventSrc.close();
+                this.eventSrc = null;
+              }
+              // Refresh session list to update status
+              this.loadSessions();
+            });
+
+            this.eventSrc.addEventListener("error", (e) => {
+              this.addEvent("error", "Connection error");
+              this.watching = false;
+            });
+
+            this.eventSrc.onerror = () => {
+              // EventSource auto-reconnects
+            };
+          },
+
+          addEvent(type, text) {
+            const now = new Date();
+            const time = now.toTimeString().slice(0, 8);
+            this.events.push({
+              id: "e" + Date.now() + Math.random(),
+              type,
+              time,
+              html: escHtml(text),
+            });
+            // Keep last 200 events
+            if (this.events.length > 200) {
+              this.events = this.events.slice(-200);
+            }
+            // Auto-scroll
+            this.$nextTick(() => {
+              const el = this.$refs.events;
+              if (el) el.scrollTop = el.scrollHeight;
+            });
+          },
+
+          activeCount() {
+            return this.sessions.filter((s) => s.active).length;
+          },
+
+          timeAgo(iso) {
+            if (!iso) return "";
+            const ms = Date.now() - new Date(iso).getTime();
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return "just now";
+            if (s < 3600) return Math.floor(s / 60) + "m ago";
+            if (s < 86400) return Math.floor(s / 3600) + "h ago";
+            return Math.floor(s / 86400) + "d ago";
+          },
+
+          retry() {
+            this.connected = true;
+            this.init();
+          },
+        };
+      }
+
+      function formatEvent(ev) {
+        const t = ev.event || "";
+        if (t === "session_created") return "Session created";
+        if (t === "session_deleted") return "Session deleted";
+        if (t === "chat_start")
+          return "Prompt: " + (ev.message || "").slice(0, 80);
+        if (t === "session_deactivated") return "Session deactivated";
+        return t;
+      }
+
+      function escHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+      }
+    </script>
+  </body>
+</html>

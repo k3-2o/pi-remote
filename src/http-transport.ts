@@ -17,12 +17,18 @@
  *  GET  /v1/sessions          → list sessions (dashboard/monitoring)
  *  GET  /v1/sessions/:id      → get session info
  *  DELETE /v1/sessions/:id    → delete session
+ *  GET  /v1/sessions/:id/watch → passive SSE — watch a session's live output
+ *  GET  /v1/sessions/:id/log  → recent events from event log for a session
+ *  GET  /v1/ui                → browser attach dashboard (static HTML)
  *
  * Removed from HTTP (use WebSocket for these):
  *  POST /v1/sessions/:id/chat  → WS: send command { type: "prompt" }
  *  POST /v1/sessions/:id/abort → WS: send command { type: "abort" }
  */
 
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 import { Hono } from "hono";
 import { streamSSE, type SSEStreamingApi } from "hono/streaming";
 import type { SessionManager } from "./session-manager.js";
@@ -43,7 +49,11 @@ export class HttpTransport {
 
     // Auth middleware
     this.app.use("*", async (c, next) => {
-      if (c.req.path === "/v1/health" || c.req.path === "/v1/version") {
+      if (
+        c.req.path === "/v1/health" ||
+        c.req.path === "/v1/version" ||
+        c.req.path === "/v1/ui"
+      ) {
         await next();
         return;
       }
@@ -116,6 +126,106 @@ export class HttpTransport {
         const msg = String(err);
         if (msg.includes("not found")) return c.json({ error: msg }, 404);
         return c.json({ error: msg }, 500);
+      }
+    });
+
+    // ── UI (static dashboard) ────────────────────────────
+    this.app.get("/v1/ui", (c) => {
+      const html = this.loadUI();
+      if (!html) {
+        return c.text("UI not found. Run `node build.mjs` first.", 404);
+      }
+      return c.html(html);
+    });
+
+    // ── Session Watch (passive SSE) ───────────────────────
+    this.app.get("/v1/sessions/:id/watch", async (c) => {
+      const sessionId = c.req.param("id");
+      const info = this.sessionManager.getInfo(sessionId);
+      if (!info) return c.json({ error: "Session not found" }, 404);
+
+      const pi = this.sessionManager.getProcessIfExists(sessionId);
+      if (!pi) {
+        // Session exists but no process running (idle/done) — return empty SSE that closes
+        return streamSSE(c, async (stream) => {
+          await stream.writeSSE({
+            event: "done",
+            data: JSON.stringify({ reason: "no_active_process", sessionId }),
+          });
+        });
+      }
+
+      return streamSSE(c, async (stream) => {
+        const unsubscribe = pi.addMessageListener((message) => {
+          const type = message.type as string;
+
+          // Extension UI requests are not forwarded via SSE
+          if (type === "extension_ui_request") return;
+
+          // Command responses are not forwarded
+          if (type === "response") return;
+
+          // Streaming events — unwrap and forward
+          if (type === "event") {
+            const inner = message.event as Record<string, unknown> | undefined;
+            if (inner) {
+              this.sendSSEEvent(stream, inner);
+              // Detect agent_end in the inner event
+              if (inner.type === "agent_end") {
+                stream
+                  .writeSSE({
+                    event: "done",
+                    data: JSON.stringify({ sessionId }),
+                  })
+                  .catch(() => {});
+              }
+            }
+            return;
+          }
+
+          // Fallback: forward raw
+          stream
+            .writeSSE({ event: type, data: JSON.stringify(message) })
+            .catch(() => {});
+        });
+
+        // Cleanup on close
+        stream.onAbort(() => {
+          unsubscribe();
+        });
+
+        // Keep the stream alive until aborted
+        await new Promise(() => {});
+      });
+    });
+
+    // ── Session Log (historical events from JSONL) ────────
+    this.app.get("/v1/sessions/:id/log", (c) => {
+      const sessionId = c.req.param("id");
+      const info = this.sessionManager.getInfo(sessionId);
+      if (!info) return c.json({ error: "Session not found" }, 404);
+
+      const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+
+      try {
+        const lines = EventLog.tail(500);
+        const filtered = lines
+          .map((l) => {
+            try {
+              return JSON.parse(l) as Record<string, unknown>;
+            } catch {
+              return null;
+            }
+          })
+          .filter(
+            (e): e is Record<string, unknown> =>
+              e !== null && e.sessionId === sessionId,
+          )
+          .slice(-limit);
+
+        return c.json({ sessionId, events: filtered });
+      } catch {
+        return c.json({ sessionId, events: [] });
       }
     });
 
@@ -309,4 +419,32 @@ export class HttpTransport {
   getApp(): Hono {
     return this.app;
   }
+
+  /**
+   * Load the UI HTML file.
+   * Resolves relative to the current module's location so it works
+   * both in dev (src/http-transport.ts → src/ui/index.html) and
+   * in production (dist/cli.js → dist/ui/index.html after build copy).
+   */
+  private loadUI(): string | null {
+    if (this._uiHtml) return this._uiHtml;
+
+    const moduleDir = dirname(fileURLToPath(import.meta.url));
+    const candidates = [
+      resolve(moduleDir, "ui", "index.html"),
+      resolve(moduleDir, "..", "src", "ui", "index.html"),
+    ];
+
+    for (const path of candidates) {
+      if (existsSync(path)) {
+        this._uiHtml = readFileSync(path, "utf-8");
+        this.logger.info("UI loaded", { path });
+        return this._uiHtml;
+      }
+    }
+
+    this.logger.warn("UI file not found", { candidates });
+    return null;
+  }
+  private _uiHtml: string | null = null;
 }

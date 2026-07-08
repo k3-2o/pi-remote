@@ -113,6 +113,15 @@ export class SessionManager {
   }
 
   /**
+   * Get an existing PiProcess without creating one.
+   * Returns undefined if the session doesn't exist or the process isn't running.
+   */
+  getProcessIfExists(sessionId: string): PiProcess | undefined {
+    if (!this.sessions.has(sessionId)) return undefined;
+    return this.processManager.get(sessionId);
+  }
+
+  /**
    * Create a session on WebSocket connect. No explicit POST needed.
    * Connection IS the session. Returns sessionId for the welcome message.
    * Accepts optional system prompt overrides passed at connect time.
