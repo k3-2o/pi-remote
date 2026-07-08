@@ -231,12 +231,6 @@
           <span class="status-text" x-text="'uptime: ' + uptime">up 0m</span>
         </div>
         <div class="status-right">
-          <div class="status-item">
-            <span class="status-text" style="font-size:11px">API Key:</span>
-            <div class="auth-input-wrapper">
-              <input type="password" class="auth-input mono" placeholder="None required" x-model="apiKey" @change="saveApiKey()" />
-            </div>
-          </div>
         </div>
       </header>
 
@@ -376,7 +370,7 @@
           loadDiagnostics() {
             fetch("/v1/health", { headers: this.getHeaders() })
               .then(function(r) { if (r.status === 401) throw Error("Unauthorized"); return r.json(); })
-              .then(function(d) { this.connected = true; this.version = "v" + (d.version || "0.2.1"); var u = Math.floor(d.uptime || 0); this.uptime = Math.floor(u/3600) + "h " + Math.floor((u%3600)/60) + "m"; }.bind(this))
+              .then(function(d) { this.connected = true; this.version = "v" + (d.version || "0.2.1"); var u = Math.floor(d.uptime || 0); this.uptime = Math.floor(u/3600) + "h " + Math.floor((u%3600)/60) + "m " + Math.floor(u%60) + "s"; }.bind(this))
               .catch(function() { this.connected = false; }.bind(this));
             if (!this.connected) return;
             fetch("/v1/sessions", { headers: this.getHeaders() })
