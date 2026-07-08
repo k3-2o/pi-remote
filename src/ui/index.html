@@ -3,10 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>pi-remote</title>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <title>pi-remote dashboard</title>
     <script src="https://unpkg.com/alpinejs@3.14.8" defer></script>
     <style>
+      /* Premium Dark Theme Variables (GitHub/VSCode Dark inspired) */
+      :root {
+        --bg-main: #0b0e14;
+        --bg-sidebar: #11151c;
+        --bg-panel: #161b22;
+        --bg-row-hover: #1f242e;
+        --bg-row-selected: #242c38;
+        --border-color: #21262d;
+        --text-primary: #f0f6fc;
+        --text-secondary: #8b949e;
+        --text-muted: #484f58;
+
+        --color-green: #3fb950;
+        --color-yellow: #d29922;
+        --color-blue: #58a6ff;
+        --color-purple: #bc8cff;
+        --color-red: #f85149;
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -14,461 +32,859 @@
       }
       body {
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: #0d1117;
-        color: #c9d1d9;
-        font-size: 14px;
-      }
-      a {
-        color: #58a6ff;
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: var(--bg-main);
+        color: var(--text-primary);
+        font-size: 13px;
+        line-height: 1.5;
+        overflow: hidden;
       }
 
-      /* Status bar */
-      .status {
+      /* Utility Styles */
+      .mono {
+        font-family:
+          "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+          Consolas, monospace;
+      }
+      .pulse {
+        animation: pulse-kf 2s infinite;
+      }
+      @keyframes pulse-kf {
+        0% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.4;
+        }
+      }
+
+      /* Status Bar */
+      .status-bar {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 10px 16px;
-        background: #161b22;
-        border-bottom: 1px solid #30363d;
-        font-size: 13px;
+        justify-content: space-between;
+        padding: 0 16px;
+        height: 40px;
+        background: var(--bg-sidebar);
+        border-bottom: 1px solid var(--border-color);
       }
-      .status .name {
+      .status-left,
+      .status-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .status-title {
         font-weight: 600;
-        color: #f0f6fc;
+        color: var(--text-primary);
       }
-      .status .dot {
+      .status-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        display: inline-block;
       }
-      .status .dot.live {
-        background: #3fb950;
+      .status-dot.online {
+        background: var(--color-green);
+        box-shadow: 0 0 6px var(--color-green);
       }
-      .status .dot.dead {
-        background: #f85149;
+      .status-dot.offline {
+        background: var(--color-red);
+        box-shadow: 0 0 6px var(--color-red);
       }
-      .status .sep {
-        color: #30363d;
+      .status-text {
+        font-size: 12px;
+        color: var(--text-secondary);
       }
-      .status .stat {
-        color: #8b949e;
+      .status-sep {
+        color: var(--text-muted);
       }
 
-      /* Layout */
-      .main {
+      /* Auth Settings Input */
+      .auth-input-wrapper {
         display: flex;
-        height: calc(100vh - 41px);
+        align-items: center;
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 2px 6px;
       }
-      .sidebar {
-        width: 360px;
-        min-width: 360px;
-        border-right: 1px solid #30363d;
-        overflow-y: auto;
-        background: #0d1117;
+      .auth-input {
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--text-primary);
+        font-size: 11px;
+        width: 140px;
       }
-      .detail {
-        flex: 1;
-        overflow-y: auto;
-        background: #0d1117;
+      .auth-input::placeholder {
+        color: var(--text-muted);
       }
 
-      /* Session list */
-      .sessions {
-        padding: 8px;
+      /* App Layout */
+      .app-container {
+        display: flex;
+        height: calc(100vh - 40px);
       }
-      .sessions h3 {
+
+      /* Sidebar */
+      .sidebar {
+        width: 320px;
+        min-width: 320px;
+        background: var(--bg-sidebar);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar-header {
+        padding: 12px 16px 8px;
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #8b949e;
-        padding: 8px 8px 4px;
+        color: var(--text-secondary);
+        border-bottom: 1px solid rgba(33, 38, 45, 0.5);
       }
-      .session-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+      .session-list {
+        flex: 1;
+        overflow-y: auto;
         padding: 8px;
+      }
+      .session-card {
+        display: flex;
+        flex-direction: column;
+        padding: 10px 12px;
         border-radius: 6px;
         cursor: pointer;
-        transition: background 0.1s;
+        margin-bottom: 4px;
+        border: 1px solid transparent;
+        transition:
+          background-color 0.15s ease,
+          border-color 0.15s ease;
       }
-      .session-row:hover {
-        background: #161b22;
+      .session-card:hover {
+        background: var(--bg-row-hover);
       }
-      .session-row.selected {
-        background: #1f2937;
+      .session-card.selected {
+        background: var(--bg-row-selected);
+        border-color: rgba(88, 166, 255, 0.2);
       }
-      .session-row .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
+      .session-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
       }
-      .session-row .dot.active {
-        background: #3fb950;
-        box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
-      }
-      .session-row .dot.idle {
-        background: #8b949e;
-      }
-      .session-row .dot.done {
-        background: #30363d;
-      }
-      .session-row .dot.error {
-        background: #f85149;
-      }
-      .session-row .info {
-        flex: 1;
-        min-width: 0;
-      }
-      .session-row .id {
-        font-size: 13px;
-        color: #f0f6fc;
-        white-space: nowrap;
+      .session-card-id {
+        font-weight: 500;
+        color: var(--text-primary);
+        max-width: 170px;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .session-row .meta {
+      .session-card-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         font-size: 11px;
-        color: #8b949e;
-        margin-top: 1px;
       }
-      .session-row .msgs {
-        font-size: 11px;
-        color: #8b949e;
-        text-align: right;
-        flex-shrink: 0;
+      .session-card-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
       }
-      .summary {
-        font-size: 11px;
-        color: #8b949e;
-        padding: 8px;
-        border-top: 1px solid #21262d;
-        margin-top: 4px;
+      .session-card-dot.streaming {
+        background: var(--color-green);
+        box-shadow: 0 0 6px var(--color-green);
       }
-
-      /* Detail panel */
-      .detail-panel {
-        padding: 16px;
+      .session-card-dot.active {
+        background: var(--color-blue);
       }
-      .detail-panel .header {
+      .session-card-dot.idle {
+        background: var(--text-secondary);
+      }
+      .session-card-dot.deactivated {
+        background: var(--text-muted);
+      }
+      .session-card-bottom {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
-      }
-      .detail-panel .header .id {
-        font-size: 15px;
-        font-weight: 600;
-        color: #f0f6fc;
-      }
-      .detail-panel .header .badge {
         font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 12px;
+        color: var(--text-secondary);
       }
-      .detail-panel .header .badge.active {
-        background: rgba(63, 185, 80, 0.15);
-        color: #3fb950;
+
+      .sidebar-footer {
+        padding: 10px 16px;
+        border-top: 1px solid var(--border-color);
+        font-size: 11px;
+        color: var(--text-secondary);
+        background: rgba(17, 21, 28, 0.8);
       }
-      .detail-panel .header .badge.idle {
-        background: rgba(139, 148, 158, 0.15);
-        color: #8b949e;
+
+      /* Empty / Welcome View */
+      .empty-view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        background: var(--bg-main);
+        gap: 8px;
+        padding: 40px;
+        text-align: center;
       }
-      .detail-panel .header .badge.done {
-        background: rgba(48, 54, 61, 0.3);
-        color: #484f58;
+      .empty-view h3 {
+        color: var(--text-primary);
+        font-weight: 500;
+        font-size: 16px;
       }
-      .detail-panel .meta {
+      .empty-view p {
+        max-width: 320px;
         font-size: 12px;
-        color: #8b949e;
-        margin-bottom: 12px;
       }
-      .detail-panel .meta span {
-        margin-right: 16px;
+
+      /* Workspace Detail Panel */
+      .workspace {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-main);
+        overflow: hidden;
       }
-      .detail-empty {
+      .workspace-header {
         display: flex;
         align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: #484f58;
-        font-size: 15px;
+        justify-content: space-between;
+        height: 48px;
+        padding: 0 20px;
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-color);
       }
-
-      /* Event stream */
-      .events {
-        font-family:
-          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-        font-size: 13px;
-        line-height: 1.5;
-      }
-      .events .ev {
-        padding: 4px 8px;
-        border-left: 2px solid transparent;
-        margin: 2px 0;
-      }
-      .events .ev:hover {
-        background: #161b22;
-      }
-      .events .ev.thinking {
-        border-left-color: #d29922;
-        color: #d29922;
-      }
-      .events .ev.token {
-        border-left-color: #58a6ff;
-        color: #c9d1d9;
-      }
-      .events .ev.tool_start {
-        border-left-color: #bc8cff;
-        color: #bc8cff;
-      }
-      .events .ev.tool_output {
-        border-left-color: #3fb950;
-        color: #8b949e;
-        font-size: 12px;
-      }
-      .events .ev.tool_end {
-        border-left-color: #3fb950;
-        color: #3fb950;
-      }
-      .events .ev.done {
-        border-left-color: #3fb950;
-        color: #3fb950;
-        font-weight: 600;
-      }
-      .events .ev.error {
-        border-left-color: #f85149;
-        color: #f85149;
-      }
-      .events .ev.info {
-        border-left-color: #8b949e;
-        color: #8b949e;
-      }
-      .events .ev .time {
-        color: #484f58;
-        margin-right: 8px;
-        font-size: 11px;
-      }
-
-      /* Delete button */
-      .btn-del {
-        background: none;
-        border: 1px solid #30363d;
-        color: #f85149;
-        padding: 4px 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 12px;
-      }
-      .btn-del:hover {
-        background: rgba(248, 81, 73, 0.1);
-        border-color: #f85149;
-      }
-
-      /* Disconnected overlay */
-      .disconnected {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(13, 17, 23, 0.85);
-        z-index: 100;
+      .workspace-meta {
+        display: flex;
         align-items: center;
-        justify-content: center;
-        flex-direction: column;
         gap: 12px;
       }
-      .disconnected.show {
+      .workspace-id {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .workspace-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+        text-transform: uppercase;
+      }
+      .workspace-badge.streaming {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--color-green);
+      }
+      .workspace-badge.active {
+        background: rgba(88, 166, 255, 0.15);
+        color: var(--color-blue);
+      }
+      .workspace-badge.idle {
+        background: rgba(139, 148, 158, 0.15);
+        color: var(--text-secondary);
+      }
+      .workspace-badge.deactivated {
+        background: rgba(72, 79, 88, 0.2);
+        color: var(--text-muted);
+      }
+      .workspace-stats {
+        font-size: 11px;
+        color: var(--text-secondary);
         display: flex;
-      }
-      .disconnected h2 {
-        color: #f85149;
-      }
-      .disconnected p {
-        color: #8b949e;
-      }
-      .disconnected button {
-        background: #21262d;
-        border: 1px solid #30363d;
-        color: #c9d1d9;
-        padding: 8px 20px;
-        border-radius: 6px;
-        cursor: pointer;
-      }
-      .disconnected button:hover {
-        background: #30363d;
+        gap: 12px;
       }
 
-      /* Scrollbar */
+      /* Output Log Area */
+      .log-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+      }
+
+      /* Log items */
+      .log-item {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 4px;
+      }
+      .log-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        color: var(--text-muted);
+        margin-bottom: 2px;
+      }
+      .log-content {
+        white-space: pre-wrap;
+        font-size: 13px;
+        border-radius: 4px;
+      }
+
+      /* Message types */
+      .log-item.info .log-content {
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 12px;
+      }
+      .log-item.text .log-content {
+        color: var(--text-primary);
+        padding: 4px 0;
+      }
+
+      /* Collapsible Thinking Block */
+      .thinking-box {
+        background: rgba(210, 153, 34, 0.04);
+        border-left: 2px solid var(--color-yellow);
+        border-radius: 0 4px 4px 0;
+        margin: 4px 0;
+      }
+      .thinking-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 11px;
+        color: var(--color-yellow);
+        user-select: none;
+      }
+      .thinking-header:hover {
+        background: rgba(210, 153, 34, 0.08);
+      }
+      .thinking-body {
+        padding: 8px 12px;
+        border-top: 1px solid rgba(210, 153, 34, 0.1);
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+
+      /* Tool Call Display */
+      .tool-box {
+        background: rgba(188, 140, 255, 0.03);
+        border: 1px solid rgba(188, 140, 255, 0.15);
+        border-left: 3px solid var(--color-purple);
+        border-radius: 4px;
+        margin: 6px 0;
+      }
+      .tool-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--color-purple);
+        cursor: pointer;
+        user-select: none;
+      }
+      .tool-header:hover {
+        background: rgba(188, 140, 255, 0.08);
+      }
+      .tool-name {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tool-status-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 8px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+      .tool-status-badge.running {
+        background: rgba(210, 153, 34, 0.15);
+        color: var(--color-yellow);
+      }
+      .tool-status-badge.success {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--color-green);
+      }
+      .tool-status-badge.error {
+        background: rgba(248, 81, 73, 0.15);
+        color: var(--color-red);
+      }
+
+      .tool-body {
+        padding: 10px 12px;
+        border-top: 1px solid rgba(188, 140, 255, 0.1);
+        font-size: 11px;
+        background: rgba(11, 14, 20, 0.4);
+      }
+      .tool-section {
+        margin-bottom: 8px;
+      }
+      .tool-section:last-child {
+        margin-bottom: 0;
+      }
+      .tool-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 2px;
+        font-weight: 600;
+      }
+      .tool-val {
+        white-space: pre-wrap;
+        color: var(--text-primary);
+      }
+
+      /* Workspace Action Footer */
+      .workspace-actions {
+        height: 48px;
+        padding: 0 20px;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .btn-kill {
+        background: none;
+        border: 1px solid var(--border-color);
+        color: var(--color-red);
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 12px;
+        transition:
+          background-color 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .btn-kill:hover {
+        background: rgba(248, 81, 73, 0.1);
+        border-color: var(--color-red);
+      }
+
+      /* Floating Scroll Assist */
+      .scroll-btn {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(33, 38, 45, 0.9);
+        border: 1px solid var(--border-color);
+        color: var(--color-blue);
+        padding: 6px 12px;
+        border-radius: 16px;
+        cursor: pointer;
+        font-size: 11px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity 0.2s;
+      }
+      .scroll-btn:hover {
+        background: var(--bg-row-hover);
+      }
+
+      /* Disconnected Overlay */
+      .disconnected-curtain {
+        position: fixed;
+        inset: 0;
+        background: rgba(11, 14, 20, 0.85);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+      .disconnected-box {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-top: 3px solid var(--color-red);
+        border-radius: 6px;
+        padding: 24px;
+        width: 320px;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      }
+      .disconnected-box h2 {
+        color: var(--color-red);
+        font-size: 16px;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+      .disconnected-box p {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin-bottom: 16px;
+      }
+      .btn-retry {
+        background: var(--color-blue);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .btn-retry:hover {
+        opacity: 0.9;
+      }
+
+      /* Scrollbar Customization */
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #0d1117;
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: #30363d;
-        border-radius: 4px;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
       }
     </style>
   </head>
   <body>
     <div x-data="dashboard()" x-init="init()">
-      <!-- Disconnected overlay -->
-      <div class="disconnected" x-bind:class="connected ? '' : 'show'">
-        <h2>Disconnected</h2>
-        <p>Could not reach pi-remote server</p>
-        <button @click="retry()">Retry</button>
+      <!-- Server Connection Loss State -->
+      <div class="disconnected-curtain" x-show="!connected">
+        <div class="disconnected-box">
+          <h2>Offline</h2>
+          <p>Unable to connect to pi-remote server.</p>
+          <button class="btn-retry" @click="retry()">Reconnect</button>
+        </div>
       </div>
 
-      <!-- Status bar -->
-      <div
-        class="status"
-        hx-get="/v1/health"
-        hx-trigger="every 10s"
-        hx-target="this"
-        hx-swap="outerHTML"
-        hx-ext="alpine-morph"
-      >
-        <span class="name">pi-remote</span>
-        <span class="dot live"></span>
-        <span class="stat">live</span>
-        <span class="sep">·</span>
-        <span class="stat" x-text="version">v0.2.1</span>
-        <span class="sep">·</span>
-        <span class="stat" x-text="'up ' + uptime"></span>
-      </div>
+      <!-- Main Status Bar -->
+      <header class="status-bar">
+        <div class="status-left">
+          <span class="status-title">pi-remote</span>
+          <span class="status-sep">·</span>
+          <div class="status-item">
+            <span
+              class="status-dot"
+              :class="connected ? 'online' : 'offline'"
+            ></span>
+            <span
+              class="status-text"
+              x-text="connected ? 'live' : 'disconnected'"
+            ></span>
+          </div>
+          <span class="status-sep">·</span>
+          <span class="status-text mono" x-text="version">v0.0.0</span>
+          <span class="status-sep">·</span>
+          <span class="status-text" x-text="'uptime: ' + uptime">up 0m</span>
+        </div>
 
-      <div class="main">
-        <!-- Sidebar: session list -->
-        <div
-          class="sidebar"
-          hx-get="/v1/sessions"
-          hx-trigger="every 5s"
-          hx-target="this"
-          hx-swap="innerHTML"
-        >
-          <div class="sessions" x-data="{ selected: null }">
+        <div class="status-right">
+          <div class="status-item">
+            <span class="status-text" style="font-size: 11px">API Key:</span>
+            <div class="auth-input-wrapper">
+              <input
+                type="password"
+                class="auth-input mono"
+                placeholder="None required"
+                x-model="apiKey"
+                @change="saveApiKey()"
+              />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- App Workspace -->
+      <main class="app-container">
+        <!-- Sidebar: Sessions List -->
+        <section class="sidebar">
+          <div class="sidebar-header">Active Sessions</div>
+          <div class="session-list">
+            <!-- Empty session list -->
             <template x-if="sessions.length === 0">
               <div
                 style="
-                  padding: 24px 16px;
-                  color: #484f58;
+                  padding: 32px 16px;
+                  color: var(--text-muted);
                   text-align: center;
-                  font-size: 13px;
                 "
               >
-                No sessions.<br />
-                Start pi-remote and send a prompt to see it here.
+                No sessions active.<br />
+                Send a prompt using curl, SDK, or integration to see session
+                diagnostics.
               </div>
             </template>
+
+            <!-- Sessions iterate -->
             <template x-if="sessions.length > 0">
               <div>
-                <h3>Sessions</h3>
                 <template x-for="s in sessions" :key="s.sessionId">
                   <div
-                    class="session-row"
-                    x-bind:class="selected === s.sessionId ? 'selected' : ''"
+                    class="session-card"
+                    :class="selected === s.sessionId ? 'selected' : ''"
                     @click="select(s.sessionId)"
                   >
-                    <span
-                      class="dot"
-                      x-bind:class="s.active ? (s.isStreaming ? 'active' : 'idle') : 'done'"
-                    ></span>
-                    <div class="info">
-                      <div
-                        class="id"
-                        x-text="s.sessionId.slice(0, 12) + '...'"
-                      ></div>
-                      <div class="meta">
+                    <div class="session-card-top">
+                      <span
+                        class="session-card-id mono"
+                        x-text="s.sessionId"
+                      ></span>
+                      <div class="session-card-status">
                         <span
-                          x-text="s.active ? (s.isStreaming ? 'streaming' : 'active') : 'done'"
+                          class="session-card-dot"
+                          :class="s.active ? (s.isStreaming ? 'streaming pulse' : 'active') : 'deactivated'"
                         ></span>
-                        <span x-text="'created ' + timeAgo(s.createdAt)"></span>
+                        <span
+                          class="mono"
+                          style="font-size: 10px"
+                          :style="s.isStreaming ? 'color: var(--color-green); font-weight:600;' : ''"
+                          x-text="s.active ? (s.isStreaming ? 'STREAMING' : 'ACTIVE') : 'IDLE'"
+                        ></span>
                       </div>
                     </div>
-                    <div class="msgs" x-text="s.messageCount + ' msgs'"></div>
+                    <div class="session-card-bottom">
+                      <span
+                        x-text="s.messageCount + ' prompt' + (s.messageCount !== 1 ? 's' : '')"
+                      ></span>
+                      <span x-text="timeAgo(s.createdAt)"></span>
+                    </div>
                   </div>
                 </template>
-                <div
-                  class="summary"
-                  x-text="activeCount() + ' active · ' + sessions.length + ' total'"
-                ></div>
               </div>
             </template>
           </div>
-        </div>
 
-        <!-- Detail panel -->
-        <div class="detail" x-ref="detail">
+          <div class="sidebar-footer">
+            <span
+              x-text="activeCount() + ' running · ' + sessions.length + ' total in memory'"
+            ></span>
+          </div>
+        </section>
+
+        <!-- Content Workspace Detail -->
+        <section class="workspace">
+          <!-- Welcome empty state -->
           <template x-if="!selected">
-            <div class="detail-empty">Select a session to watch</div>
+            <div class="empty-view">
+              <h3>No Session Selected</h3>
+              <p>
+                Choose an active or historical session from the sidebar to
+                inspect thinking trace, event sequence, and tool execution logs.
+              </p>
+            </div>
           </template>
+
+          <!-- Selected Session Detail Workspace -->
           <template x-if="selected">
-            <div class="detail-panel">
-              <div class="header">
-                <div>
-                  <div class="id" x-text="selectedId"></div>
-                  <div class="meta">
-                    <span
-                      x-text="'messages: ' + (selectedInfo?.messageCount ?? 0)"
-                    ></span>
-                    <span
-                      x-text="'created: ' + (selectedInfo?.createdAt ?? '').slice(0, 19).replace('T', ' ')"
-                    ></span>
-                  </div>
-                </div>
-                <div>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+                overflow: hidden;
+              "
+            >
+              <header class="workspace-header">
+                <div class="workspace-meta">
+                  <span class="workspace-id mono" x-text="selected"></span>
                   <span
-                    class="badge"
-                    x-bind:class="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'active' : 'idle') : 'done'"
-                    x-text="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'done'"
+                    class="workspace-badge"
+                    :class="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'"
+                    x-text="selectedInfo?.active ? (selectedInfo?.isStreaming ? 'streaming' : 'active') : 'deactivated'"
                   ></span>
                 </div>
-              </div>
-              <div class="events" x-ref="events">
+                <div class="workspace-stats">
+                  <span
+                    x-text="'Uptime Level: ' + (selectedInfo?.thinkingLevel ?? 'medium')"
+                  ></span>
+                  <span class="status-sep">·</span>
+                  <span
+                    x-text="'Created: ' + formatIso(selectedInfo?.createdAt)"
+                  ></span>
+                </div>
+              </header>
+
+              <!-- Output logs viewport -->
+              <div
+                class="log-container"
+                x-ref="logViewport"
+                @scroll="handleScroll()"
+              >
                 <template x-for="ev in events" :key="ev.id">
-                  <div class="ev" x-bind:class="ev.type">
-                    <span class="time" x-text="ev.time"></span>
-                    <span x-html="ev.html"></span>
+                  <div>
+                    <!-- Text Message Item -->
+                    <template x-if="ev.type === 'text'">
+                      <div class="log-item text">
+                        <div class="log-meta">
+                          <span class="mono" x-text="ev.time"></span>
+                          <span>·</span>
+                          <span>ASSISTANT TOKEN</span>
+                        </div>
+                        <div class="log-content" x-text="ev.text"></div>
+                      </div>
+                    </template>
+
+                    <!-- Information/System Lifecycle Item -->
+                    <template x-if="ev.type === 'info'">
+                      <div class="log-item info">
+                        <div class="log-meta">
+                          <span class="mono" x-text="ev.time"></span>
+                          <span>·</span>
+                          <span>SYSTEM TRACE</span>
+                        </div>
+                        <div class="log-content" x-text="ev.text"></div>
+                      </div>
+                    </template>
+
+                    <!-- Collapsible Thinking Area -->
+                    <template x-if="ev.type === 'thinking'">
+                      <div class="thinking-box">
+                        <div
+                          class="thinking-header"
+                          @click="ev.expanded = !ev.expanded"
+                        >
+                          <span
+                            style="
+                              font-weight: 600;
+                              display: flex;
+                              align-items: center;
+                              gap: 4px;
+                            "
+                          >
+                            <span x-text="ev.expanded ? '▼' : '▶'"></span>
+                            Reasoning Process
+                          </span>
+                          <span
+                            class="mono"
+                            style="font-size: 10px"
+                            x-text="ev.time"
+                          ></span>
+                        </div>
+                        <div
+                          class="thinking-body"
+                          x-show="ev.expanded"
+                          x-text="ev.text"
+                        ></div>
+                      </div>
+                    </template>
+
+                    <!-- Collapsible Tool Box -->
+                    <template x-if="ev.type === 'tool'">
+                      <div class="tool-box">
+                        <div
+                          class="tool-header"
+                          @click="ev.expanded = !ev.expanded"
+                        >
+                          <div class="tool-name">
+                            <span x-text="ev.expanded ? '▼' : '▶'"></span>
+                            <span>🔧 Tool call:</span>
+                            <span
+                              class="mono"
+                              style="
+                                font-weight: bold;
+                                color: var(--text-primary);
+                              "
+                              x-text="ev.tool"
+                            ></span>
+                          </div>
+                          <div
+                            style="display: flex; align-items: center; gap: 8px"
+                          >
+                            <span
+                              class="tool-status-badge"
+                              :class="ev.status"
+                              x-text="ev.status"
+                            ></span>
+                            <span
+                              class="mono"
+                              style="font-size: 10px"
+                              x-text="ev.time"
+                            ></span>
+                          </div>
+                        </div>
+
+                        <div class="tool-body" x-show="ev.expanded">
+                          <div class="tool-section">
+                            <div class="tool-label">Arguments</div>
+                            <div class="tool-val mono" x-text="ev.args"></div>
+                          </div>
+                          <template x-if="ev.output">
+                            <div class="tool-section" style="margin-top: 8px">
+                              <div class="tool-label">Result</div>
+                              <div
+                                class="tool-val mono"
+                                style="
+                                  color: var(--text-secondary);
+                                  max-height: 200px;
+                                  overflow-y: auto;
+                                "
+                                x-text="ev.output"
+                              ></div>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
                   </div>
                 </template>
+
+                <!-- Loading stream indicator -->
                 <div
                   x-show="watching"
                   style="
-                    color: #484f58;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    color: var(--text-muted);
+                    padding: 24px 0;
                     font-size: 12px;
-                    padding: 8px;
-                    text-align: center;
                   "
                 >
-                  <span x-text="watching ? 'listening...' : ''"></span>
+                  <span class="status-dot online pulse"></span>
+                  <span class="pulse">Observing live telemetry...</span>
                 </div>
-              </div>
-              <div
-                style="
-                  margin-top: 12px;
-                  padding-top: 12px;
-                  border-top: 1px solid #21262d;
-                "
-              >
+
+                <!-- Scroll assist floating button -->
                 <button
-                  class="btn-del"
-                  hx-delete="/v1/sessions/"
-                  hx-vals="js:{id: selectedId}"
-                  hx-target="closest .detail"
-                  hx-swap="innerHTML"
-                  hx-confirm="Delete this session?"
+                  class="scroll-btn"
+                  x-show="!autoScroll"
+                  @click="scrollToBottom(true)"
                 >
-                  ✕ Delete session
+                  ⬇ Scroll to bottom
                 </button>
               </div>
+
+              <!-- Bottom Kill Form bar -->
+              <footer class="workspace-actions">
+                <button class="btn-kill" @click="deleteSession()">
+                  ✕ Kill & Erase Session
+                </button>
+              </footer>
             </div>
           </template>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
 
     <script>
@@ -479,163 +895,320 @@
           uptime: "0m",
           sessions: [],
           selected: null,
-          selectedId: "",
           selectedInfo: null,
           events: [],
           watching: false,
           eventSrc: null,
+          autoScroll: true,
+          apiKey: "",
+          pollingInterval: null,
 
           init() {
-            this.loadHealth();
-            this.loadSessions();
+            // Load API key from local storage
+            this.apiKey = localStorage.getItem("pi_remote_apikey") || "";
+
+            this.loadDiagnostics();
+
+            // Polling loop
+            this.pollingInterval = setInterval(() => {
+              this.loadDiagnostics();
+            }, 3000);
           },
 
-          loadHealth() {
-            fetch("/v1/health")
-              .then((r) => r.json())
+          getHeaders() {
+            const h = { "Content-Type": "application/json" };
+            if (this.apiKey) {
+              h["Authorization"] = `Bearer ${this.apiKey}`;
+            }
+            return h;
+          },
+
+          saveApiKey() {
+            localStorage.setItem("pi_remote_apikey", this.apiKey);
+            this.loadDiagnostics();
+          },
+
+          loadDiagnostics() {
+            // Load health metrics
+            fetch("/v1/health", { headers: this.getHeaders() })
+              .then((r) => {
+                if (r.status === 401) throw new Error("Unauthorized");
+                return r.json();
+              })
               .then((d) => {
                 this.connected = true;
                 this.version = "v" + (d.version || "0.2.1");
                 const u = Math.floor(d.uptime || 0);
                 const h = Math.floor(u / 3600);
                 const m = Math.floor((u % 3600) / 60);
-                this.uptime = h > 0 ? h + "h " + m + "m" : m + "m";
+                const s = u % 60;
+                this.uptime = h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
               })
               .catch(() => {
                 this.connected = false;
               });
-          },
 
-          loadSessions() {
-            fetch("/v1/sessions")
+            if (!this.connected) return;
+
+            // Load sessions list
+            fetch("/v1/sessions", { headers: this.getHeaders() })
               .then((r) => r.json())
               .then((d) => {
                 this.sessions = d.sessions || [];
-                // Update selectedInfo if a session is selected
+
+                // Sync selected info
                 if (this.selected) {
-                  this.selectedInfo =
-                    this.sessions.find((s) => s.sessionId === this.selected) ||
-                    null;
+                  const current = this.sessions.find(
+                    (s) => s.sessionId === this.selected,
+                  );
+                  if (current) {
+                    this.selectedInfo = current;
+                  } else {
+                    // Session deleted externally
+                    this.selected = null;
+                    this.selectedInfo = null;
+                    this.closeWatch();
+                  }
                 }
               })
               .catch(() => {});
           },
 
           select(id) {
-            // Close previous SSE
-            if (this.eventSrc) {
-              this.eventSrc.close();
-              this.eventSrc = null;
-            }
-            this.watching = false;
+            this.closeWatch();
             this.events = [];
             this.selected = id;
-            this.selectedId = id.slice(0, 12) + "...";
             this.selectedInfo =
               this.sessions.find((s) => s.sessionId === id) || null;
+            this.autoScroll = true;
 
-            // Add history from event log
-            fetch("/v1/sessions/" + id + "/log?limit=20")
+            // 1. Fetch event log history
+            fetch(`/v1/sessions/${id}/log?limit=50`, {
+              headers: this.getHeaders(),
+            })
               .then((r) => r.json())
               .then((d) => {
                 if (d.events) {
-                  for (const ev of d.events) {
-                    this.addEvent("info", formatEvent(ev));
-                  }
+                  d.events.forEach((ev) => {
+                    this.addHistoricalEvent(ev);
+                  });
+                  this.triggerScroll();
                 }
               })
               .catch(() => {});
 
-            // Open SSE watch
-            this.eventSrc = new EventSource("/v1/sessions/" + id + "/watch");
+            // 2. Setup Watch EventSource
+            const watchUrl = `/v1/sessions/${id}/watch`;
+            const url = this.apiKey
+              ? `${watchUrl}?apikey=${encodeURIComponent(this.apiKey)}`
+              : watchUrl;
+            this.eventSrc = new EventSource(url);
             this.watching = true;
 
             this.eventSrc.addEventListener("thinking", (e) => {
               try {
                 const d = JSON.parse(e.data);
-                this.addEvent("thinking", d.thinking || "(thinking)");
+                this.appendThinking(d.thinking || "");
               } catch {}
             });
 
             this.eventSrc.addEventListener("token", (e) => {
               try {
                 const d = JSON.parse(e.data);
-                this.addEvent("token", d.text || "");
+                this.appendText(d.text || "");
               } catch {}
             });
 
             this.eventSrc.addEventListener("tool_start", (e) => {
               try {
                 const d = JSON.parse(e.data);
-                this.addEvent(
-                  "tool_start",
-                  "Tool: " +
-                    (d.tool || "?") +
-                    (d.args ? " " + JSON.stringify(d.args).slice(0, 100) : ""),
-                );
+                this.addToolCall(d.id, d.tool, d.args);
               } catch {}
             });
 
             this.eventSrc.addEventListener("tool_output", (e) => {
               try {
                 const d = JSON.parse(e.data);
-                const out = (d.output || "").toString();
-                this.addEvent(
-                  "tool_output",
-                  out.slice(0, 200) + (out.length > 200 ? "..." : ""),
-                );
+                this.appendToolOutput(d.output || "");
               } catch {}
             });
 
             this.eventSrc.addEventListener("tool_end", (e) => {
               try {
                 const d = JSON.parse(e.data);
-                this.addEvent(
-                  "tool_end",
-                  d.isError ? "Error: " + (d.result || "") : "Done",
-                );
+                this.finishToolCall(d.isError, d.result);
               } catch {}
             });
 
             this.eventSrc.addEventListener("done", () => {
-              this.addEvent("done", "Agent finished");
-              this.watching = false;
-              if (this.eventSrc) {
-                this.eventSrc.close();
-                this.eventSrc = null;
-              }
-              // Refresh session list to update status
-              this.loadSessions();
-            });
-
-            this.eventSrc.addEventListener("error", (e) => {
-              this.addEvent("error", "Connection error");
-              this.watching = false;
+              this.addSystemEvent(
+                "Telemetry stream finished: process inactive.",
+              );
+              this.closeWatch();
+              this.loadDiagnostics();
             });
 
             this.eventSrc.onerror = () => {
-              // EventSource auto-reconnects
+              // SSE auto-reconnects, but if session inactive, it closes gracefully
             };
           },
 
-          addEvent(type, text) {
-            const now = new Date();
-            const time = now.toTimeString().slice(0, 8);
-            this.events.push({
-              id: "e" + Date.now() + Math.random(),
-              type,
-              time,
-              html: escHtml(text),
-            });
-            // Keep last 200 events
-            if (this.events.length > 200) {
-              this.events = this.events.slice(-200);
+          closeWatch() {
+            this.watching = false;
+            if (this.eventSrc) {
+              this.eventSrc.close();
+              this.eventSrc = null;
             }
-            // Auto-scroll
-            this.$nextTick(() => {
-              const el = this.$refs.events;
-              if (el) el.scrollTop = el.scrollHeight;
+          },
+
+          // Append sequential thinking blocks
+          appendThinking(text) {
+            const last = this.events[this.events.length - 1];
+            if (last && last.type === "thinking") {
+              last.text += text;
+            } else {
+              this.events.push({
+                id: "ev_" + Date.now() + Math.random(),
+                type: "thinking",
+                time: this.getTimestamp(),
+                text: text,
+                expanded: true,
+              });
+            }
+            this.triggerScroll();
+          },
+
+          // Append text response
+          appendText(text) {
+            const last = this.events[this.events.length - 1];
+            if (last && last.type === "text") {
+              last.text += text;
+            } else {
+              this.events.push({
+                id: "ev_" + Date.now() + Math.random(),
+                type: "text",
+                time: this.getTimestamp(),
+                text: text,
+              });
+            }
+            this.triggerScroll();
+          },
+
+          // Add structured Tool Call
+          addToolCall(callId, toolName, args) {
+            let argsStr = "";
+            try {
+              argsStr =
+                typeof args === "string" ? args : JSON.stringify(args, null, 2);
+            } catch {
+              argsStr = String(args);
+            }
+
+            this.events.push({
+              id: callId || "tool_" + Date.now() + Math.random(),
+              type: "tool",
+              time: this.getTimestamp(),
+              tool: toolName,
+              args: argsStr,
+              output: "",
+              status: "running",
+              expanded: true,
             });
+            this.triggerScroll();
+          },
+
+          // Add tool output chunks
+          appendToolOutput(output) {
+            const last = this.events
+              .slice()
+              .reverse()
+              .find((e) => e.type === "tool");
+            if (last) {
+              last.output += output;
+              this.triggerScroll();
+            }
+          },
+
+          // Complete tool call
+          finishToolCall(isError, result) {
+            const last = this.events
+              .slice()
+              .reverse()
+              .find((e) => e.type === "tool");
+            if (last) {
+              last.status = isError ? "error" : "success";
+              if (result !== undefined && result !== null) {
+                let resStr = "";
+                try {
+                  resStr =
+                    typeof result === "string"
+                      ? result
+                      : JSON.stringify(result, null, 2);
+                } catch {
+                  resStr = String(result);
+                }
+                last.output = resStr;
+              }
+              if (!isError) {
+                last.expanded = false; // Collapse successful tool executions to keep screen clean
+              }
+              this.triggerScroll();
+            }
+          },
+
+          // Post simple system trace lines
+          addSystemEvent(text) {
+            this.events.push({
+              id: "sys_" + Date.now() + Math.random(),
+              type: "info",
+              time: this.getTimestamp(),
+              text: text,
+            });
+            this.triggerScroll();
+          },
+
+          // Hydrate from log files
+          addHistoricalEvent(ev) {
+            const formattedText = formatEvent(ev);
+            const timeStr = ev.ts
+              ? new Date(ev.ts).toTimeString().slice(0, 8)
+              : this.getTimestamp();
+            this.events.push({
+              id: "hist_" + Date.now() + Math.random(),
+              type: "info",
+              time: timeStr,
+              text: formattedText,
+            });
+          },
+
+          deleteSession() {
+            const id = this.selected;
+            if (!id) return;
+            if (
+              !confirm(
+                `Are you sure you want to kill and erase session: ${id}?`,
+              )
+            )
+              return;
+
+            fetch(`/v1/sessions/${id}`, {
+              method: "DELETE",
+              headers: this.getHeaders(),
+            })
+              .then((r) => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+              })
+              .then(() => {
+                this.selected = null;
+                this.selectedInfo = null;
+                this.events = [];
+                this.closeWatch();
+                this.loadDiagnostics();
+              })
+              .catch((err) => {
+                alert(`Error deleting session: ${err.message}`);
+              });
           },
 
           activeCount() {
@@ -652,24 +1225,60 @@
             return Math.floor(s / 86400) + "d ago";
           },
 
+          formatIso(iso) {
+            if (!iso) return "";
+            return iso.slice(0, 19).replace("T", " ");
+          },
+
+          getTimestamp() {
+            return new Date().toTimeString().slice(0, 8);
+          },
+
           retry() {
             this.connected = true;
             this.init();
           },
+
+          handleScroll() {
+            const el = this.$refs.logViewport;
+            if (!el) return;
+            // If client scrolled away from bottom by more than 40px, pause autoscroll
+            const threshold = 40;
+            const atBottom =
+              el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+            this.autoScroll = atBottom;
+          },
+
+          scrollToBottom(force = false) {
+            if (force) this.autoScroll = true;
+            this.$nextTick(() => {
+              const el = this.$refs.logViewport;
+              if (el && this.autoScroll) {
+                el.scrollTop = el.scrollHeight;
+              }
+            });
+          },
+
+          triggerScroll() {
+            this.scrollToBottom();
+          },
         };
       }
 
+      // Formatting helpers
       function formatEvent(ev) {
         const t = ev.event || "";
-        if (t === "session_created") return "Session created";
+        if (t === "session_created") return "Session initialized";
         if (t === "session_deleted") return "Session deleted";
         if (t === "chat_start")
-          return "Prompt: " + (ev.message || "").slice(0, 80);
-        if (t === "session_deactivated") return "Session deactivated";
+          return 'Prompt received: "' + (ev.message || "") + '"';
+        if (t === "session_deactivated")
+          return "Session deactivated (idle cleanup / process freed)";
         return t;
       }
 
       function escHtml(s) {
+        if (!s) return "";
         const d = document.createElement("div");
         d.textContent = s;
         return d.innerHTML;
