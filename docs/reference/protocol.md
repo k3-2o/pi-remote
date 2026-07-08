@@ -160,7 +160,11 @@ Client → Server:  { type: "extension_ui_response", requestId: "ui_1",
                     response: { confirmed: true } }
 ```
 
-Supported dialogs: `select`, `confirm`, `input`, `editor`. Fire-and-forget methods (`notify`, `setStatus`, `setWidget`, `setTitle`) don't wait for responses. Dialogs time out after 60 seconds with a default cancelled response.
+Supported dialogs: `select`, `confirm`, `input`, `editor`. Fire-and-forget methods (`notify`, `setStatus`, `setWidget`, `setTitle`) don't wait for responses.
+
+**Timeout:** If the connected client doesn't respond within 60 seconds, the server auto-replies with a safe default — `{ confirmed: false }` for confirm, `{ cancelled: true }` for everything else. This prevents Pi from hanging forever when no client is listening or the client doesn't implement extension UI handling.
+
+**Dashboard:** The `/watch` SSE endpoint drops `extension_ui_request` events (HTTP is one-directional). If you're watching a session through the browser dashboard, you won't see these dialogs. To handle them, use the WebSocket SDK.
 
 ---
 

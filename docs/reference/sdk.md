@@ -165,23 +165,30 @@ client.off("token", handler);   // remove it
 
 `chat()` calls `off()` automatically for its internal listeners. But if you add your own listeners with `on()`, you must remove them with `off()` when you're done, or they pile up.
 
-### Extension UI (rare — only when Pi asks you a question)
+### Extension UI — Pi asks you a question
 
-If a Pi extension calls `ctx.ui.confirm()` or `ctx.ui.select()`, Pi **pauses** and waits for your answer:
+Pi extensions like **guardrails** or a custom **ask-user-question** command can call `ctx.ui.confirm()`, `ctx.ui.select()`, `ctx.ui.input()`, or `ctx.ui.editor()`. When that happens, Pi **pauses** and waits for your answer over the network. If nothing responds, it hangs until the server times it out (60 seconds) and auto-replies with a default — `{ confirmed: false }` for confirm, `{ cancelled: true }` for everything else.
 
 ```js
 client.on("extension_ui_request", (req) => {
-  // Pi is frozen, waiting for you
+  // Pi is frozen, waiting for your answer
   // req.method: "confirm" | "select" | "input" | "editor"
-  // req.message: the question
+  // req.message: the question or prompt
   
-  // Answer:
-  client.sendExtensionUIResponse(req.id, { confirmed: true });
-  // Pi unblocks and continues
+  // Send your answer back — Pi unblocks and continues
+  if (req.method === "confirm") {
+    client.sendExtensionUIResponse(req.id, { confirmed: true });
+  } else if (req.method === "select") {
+    client.sendExtensionUIResponse(req.id, { selected: "option_2" });
+  } else if (req.method === "input") {
+    client.sendExtensionUIResponse(req.id, { value: "user typed this" });
+  }
 });
 ```
 
-You will likely never use this unless you build custom Pi extensions that ask for user input. Normal `chat()` flows never trigger it.
+**If you don't handle this in your code:** Pi waits 60 seconds, the server auto-replies with a safe default, and Pi continues with the assumption the answer was "no" or "cancelled." The task may fail or take a different path as a result.
+
+You will likely never need this unless you run Pi extensions that require user confirmation (guardrails, deploy prompts, destructive operations). Normal `chat()` flows never trigger it. The dashboard's SSE watch also drops these events — it's for viewing only.
 
 ---
 
