@@ -146,7 +146,6 @@ export class HttpTransport {
 
       const pi = this.sessionManager.getProcessIfExists(sessionId);
       if (!pi) {
-        // Session exists but no process running (idle/done) — return empty SSE that closes
         return streamSSE(c, async (stream) => {
           await stream.writeSSE({
             event: "done",
@@ -159,42 +158,89 @@ export class HttpTransport {
         const unsubscribe = pi.addMessageListener((message) => {
           const type = message.type as string;
 
-          // Extension UI requests are not forwarded via SSE
           if (type === "extension_ui_request") return;
-
-          // Command responses are not forwarded
           if (type === "response") return;
 
-          // Streaming events — unwrap and forward
-          if (type === "event") {
-            const inner = message.event as Record<string, unknown> | undefined;
-            if (inner) {
-              this.sendSSEEvent(stream, inner);
-              // Detect agent_end in the inner event
-              if (inner.type === "agent_end") {
-                stream
-                  .writeSSE({
-                    event: "done",
-                    data: JSON.stringify({ sessionId }),
-                  })
-                  .catch(() => {});
-              }
-            }
-            return;
-          }
+          // Pi emits events in two formats:
+          //   1. Unwrapped (most common): { type: "message_update", ... }
+          //   2. Wrapped: { type: "event", event: { type: "message_update", ... } }
+          // Resolve the actual event payload regardless of format.
+          const raw =
+            type === "event"
+              ? (message.event as Record<string, unknown> | undefined)
+              : message;
 
-          // Fallback: forward raw
-          stream
-            .writeSSE({ event: type, data: JSON.stringify(message) })
-            .catch(() => {});
+          if (!raw) return;
+          const rawType = raw.type as string;
+
+          if (rawType === "message_update") {
+            const ae = (raw.assistantMessageEvent ?? {}) as Record<
+              string,
+              unknown
+            >;
+            const dt = ae.type as string;
+            if (dt === "text_delta") {
+              stream
+                .writeSSE({
+                  event: "token",
+                  data: JSON.stringify({ text: ae.delta }),
+                })
+                .catch(() => {});
+            } else if (dt === "thinking_delta") {
+              stream
+                .writeSSE({
+                  event: "thinking",
+                  data: JSON.stringify({ thinking: ae.delta }),
+                })
+                .catch(() => {});
+            } else {
+              stream
+                .writeSSE({ event: "message", data: JSON.stringify(raw) })
+                .catch(() => {});
+            }
+          } else if (rawType === "tool_execution_start") {
+            stream
+              .writeSSE({
+                event: "tool_start",
+                data: JSON.stringify({
+                  tool: raw.toolName,
+                  args: raw.args,
+                  id: raw.toolCallId,
+                }),
+              })
+              .catch(() => {});
+          } else if (rawType === "tool_execution_update") {
+            stream
+              .writeSSE({
+                event: "tool_output",
+                data: JSON.stringify({ output: raw.partialResult }),
+              })
+              .catch(() => {});
+          } else if (rawType === "tool_execution_end") {
+            stream
+              .writeSSE({
+                event: "tool_end",
+                data: JSON.stringify({
+                  result: raw.result,
+                  isError: raw.isError,
+                }),
+              })
+              .catch(() => {});
+          } else if (rawType === "agent_end") {
+            stream
+              .writeSSE({ event: "done", data: JSON.stringify({ sessionId }) })
+              .catch(() => {});
+          } else {
+            // Forward lifecycle events (agent_start, turn_start, message_start, etc.) as-is
+            stream
+              .writeSSE({ event: rawType, data: JSON.stringify(raw) })
+              .catch(() => {});
+          }
         });
 
-        // Cleanup on close
         stream.onAbort(() => {
           unsubscribe();
         });
-
-        // Keep the stream alive until aborted
         await new Promise(() => {});
       });
     });
