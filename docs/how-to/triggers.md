@@ -128,10 +128,10 @@ The platform owns the trigger side. Pi owns the work. The glue in between is a f
 
 ## Build your integration with Pi
 
-You have the architecture. You know the pattern: trigger → prompt → Pi → response. But you don't have to write the glue code by hand. Pi has read this doc. Show it a target and it'll scaffold the whole thing:
+You have the architecture. You know the pattern: trigger → prompt → Pi → response. But you don't have to write the glue code by hand. Pi has read this doc. Tell it to read the SDK example and guide you through building the integration step by step:
 
 ```bash
-pi "Build a Slack bot for pi-remote using the triggers doc."
+pi "Read docs/how-to/triggers.md and examples/pi_remote_ws.mjs, then walk me through building a Slack bot that connects to pi-remote."
 ```
 
-Pi knows the SDK, the protocol, and the connect-once lifecycle. Discord, Telegram, Slack, webhooks, cron — any platform, any language. The doc is as much for Pi as it is for you.
+Pi knows the SDK, the protocol, and the connect-once lifecycle — it just needs the target platform and the docs. It'll read up, explain the architecture, and write the code with you.
