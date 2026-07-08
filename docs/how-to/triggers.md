@@ -123,3 +123,15 @@ Glue that extracts a reference from the trigger payload and hands it to Pi as a 
 **The result:**
 
 The platform owns the trigger side. Pi owns the work. The glue in between is a few lines that turn an event into a prompt — the same `{ message: "..." }` shape used everywhere else in this doc. No webhook server to run, no subscriptions to manage, no boilerplate for parsing GitHub events. Use an existing n8n instance, a Zapier subscription, or the Composio SDK. Wire the trigger to `POST /v1/chat` (or a WebSocket), hand Pi the task, and let it carry out the work with the tools available on the server.
+
+---
+
+## Build your integration with Pi
+
+You have the architecture. You know the pattern: trigger → prompt → Pi → response. But you don't have to write the glue code by hand. Pi has read this doc. Show it a target and it'll scaffold the whole thing:
+
+```bash
+pi "Build a Slack bot for pi-remote using the triggers doc."
+```
+
+Pi knows the SDK, the protocol, and the connect-once lifecycle. Discord, Telegram, Slack, webhooks, cron — any platform, any language. The doc is as much for Pi as it is for you.
