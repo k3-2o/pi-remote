@@ -22,6 +22,8 @@ interface ManagedProcess {
   lastActivity: number;
   restartAttempts: number;
   createdAt: number;
+  systemPrompt?: string;
+  appendSystemPrompt?: string[];
 }
 
 export class PiProcessManager {
@@ -47,7 +49,11 @@ export class PiProcessManager {
   /**
    * Get or create a Pi process for a session.
    */
-  async getOrCreate(sessionId: string): Promise<PiProcess> {
+  async getOrCreate(
+    sessionId: string,
+    systemPrompt?: string,
+    appendSystemPrompt?: string[],
+  ): Promise<PiProcess> {
     const existing = this.processes.get(sessionId);
     if (
       existing &&
@@ -72,14 +78,33 @@ export class PiProcessManager {
     // Remove stale entry if exists
     this.processes.delete(sessionId);
 
-    // Create new process
-    const process = new PiProcess(this.piOptions);
+    // Store system prompt for crash auto-restart
+    const storedSystemPrompt = existing?.systemPrompt ?? systemPrompt;
+    const storedAppend = existing?.appendSystemPrompt ?? appendSystemPrompt;
+
+    // Build process options with per-session system prompt flags
+    const piArgs = [
+      ...(this.piOptions.piArgs ?? []),
+      ...(storedSystemPrompt ? ["--system-prompt", storedSystemPrompt] : []),
+      ...(storedAppend
+        ? storedAppend.flatMap((a) => ["--append-system-prompt", a])
+        : []),
+    ];
+
+    const processOpts: PiProcessOptions = {
+      ...this.piOptions,
+      piArgs,
+    };
+
+    const process = new PiProcess(processOpts);
     const managed: ManagedProcess = {
       process,
       sessionId,
       lastActivity: Date.now(),
       restartAttempts: 0,
       createdAt: Date.now(),
+      systemPrompt: storedSystemPrompt,
+      appendSystemPrompt: storedAppend,
     };
 
     // Wire crash handler for auto-restart

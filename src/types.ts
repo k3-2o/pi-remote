@@ -207,6 +207,10 @@ export interface HelloMessage {
   protocolVersion: number;
   clientId: string;
   lastSeq?: number;
+  /** Per-session system prompt passed as --system-prompt to this session's Pi process */
+  systemPrompt?: string;
+  /** Per-session append system prompt(s) passed as --append-system-prompt to this session's Pi process */
+  appendSystemPrompt?: string[];
 }
 
 export interface WelcomeMessage {

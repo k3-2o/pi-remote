@@ -227,7 +227,11 @@ export class WsTransport {
         handshakeComplete = true;
 
         // Auto-create session — connection IS the session
-        const session = await this.sessionManager.createOnConnect();
+        // Per-session system prompt from hello handshake
+        const session = await this.sessionManager.createOnConnect(
+          msg.systemPrompt as string | undefined,
+          msg.appendSystemPrompt as string[] | undefined,
+        );
         state.sessionId = session.sessionId;
         this.sessionCreatedAt.set(session.sessionId, Date.now());
 
