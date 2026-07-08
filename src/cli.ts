@@ -408,6 +408,7 @@ WantedBy=multi-user.target
 
 /**
  * Open the browser dashboard.
+ * Detects headless environments and prints connection instructions.
  */
 async function runAttach(cliArgs: string[]): Promise<void> {
   const config = loadConfig();
@@ -438,23 +439,33 @@ async function runAttach(cliArgs: string[]): Promise<void> {
   }
 
   const url = `http://${checkHost}:${port}/v1/ui`;
-  console.log(`Opening ${url}...`);
 
-  // Platform-appropriate open command
+  // ── Try to open browser ──────────────────────────────
   const { execSync } = await import("node:child_process");
   const platform = process.platform;
+  const hasDisplay = !!process.env.DISPLAY || !!process.env.WAYLAND_DISPLAY;
 
+  // Headless Linux: no DISPLAY set
+  if (platform === "linux" && !hasDisplay) {
+    const { hostname: osHostname } = await import("os");
+    const machineName = osHostname();
+    console.log(`pi-remote dashboard: ${url}`);
+    console.log(`SSH tunnel: ssh ${machineName} -L ${port}:localhost:${port}`);
+    console.log(`Then open http://localhost:${port}/v1/ui`);
+    return;
+  }
+
+  // Has a display -- try to open browser
   try {
     if (platform === "darwin") {
       execSync(`open "${url}"`, { stdio: "ignore", timeout: 5000 });
     } else if (platform === "win32") {
       execSync(`start "" "${url}"`, { stdio: "ignore", timeout: 5000 });
     } else {
-      // Linux and others
       execSync(`xdg-open "${url}"`, { stdio: "ignore", timeout: 5000 });
     }
   } catch {
-    console.log(`Could not open browser. Visit: ${url}`);
+    console.log(`Dashboard: ${url}`);
   }
 }
 
