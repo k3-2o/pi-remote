@@ -40,6 +40,40 @@ This only affects *this* session. Another bot connected to the same pi-remote wi
 
 ---
 
+## Restricting tools for public bots (security)
+
+By default, Pi has access to all its tools — `read`, `bash`, `edit`, `write`, and any extension tools you've installed. On your local machine, that's fine. But if you're exposing a Discord bot to a public server, **anyone who can type in that channel can make Pi run commands on your machine.**
+
+A `bash` call from a random Discord user is a direct line to your server. A `write` call can overwrite files. Even if you trust your users, a compromised Discord bot token or a malicious message could be catastrophic.
+
+You can restrict tool access at connection time using the same handshake that sets the system prompt:
+
+```js
+// Public bot — no direct system access
+await pi.connect({
+  systemPrompt: "You are a helpful Discord bot.",
+  noTools: true,   // ← disables ALL tools
+});
+```
+
+With `noTools: true`, Pi becomes a pure text model — it can answer questions, write code (as text), explain concepts, but it cannot read files, run commands, or modify anything on your server.
+
+**If you want to allow specific tools**, use the `tools` allowlist instead:
+
+```js
+// Bot that can read files and search the web, but nothing else
+await pi.connect({
+  systemPrompt: "You are a developer assistant for this server.",
+  tools: ["read", "web_search"],
+});
+```
+
+This is especially relevant if you use Pi extensions that add tools. A `web_search` extension is harmless for a public bot. `bash` is not. The allowlist lets you choose exactly what surface area you're exposing.
+
+> **The rule of thumb:** If the bot is on a public server, start with `noTools: true`. Add tools back one by one as you need them. Never give a public bot `bash` or `write` access unless it's a private server where you trust every user.
+
+---
+
 ## Prerequisites
 
 - pi-remote **running** either locally or on a remote server (see [Your First Chat](../tutorials/your-first-chat.md))
