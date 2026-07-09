@@ -88,10 +88,12 @@ export function loadConfig(configPath?: string): ServerConfig {
     const mode = process.env.PI_SERVER_SESSION_RESET_MODE;
     if (!["idle", "daily", "none"].includes(mode)) {
       throw new ConfigError(
-        `Invalid PI_SERVER_SESSION_RESET_MODE: "${mode}". Must be idle, daily, or none.`,
+        `Invalid PI_SERVER_SESSION_RESET_MODE: "${mode}". Must be idle or none.`,
       );
     }
-    config.sessionReset.mode = mode as "idle" | "daily" | "none";
+    // "daily" mode is deprecated — treated as "idle" (never implemented)
+    config.sessionReset.mode = (mode === "daily" ? "idle" : mode) as
+      "idle" | "none";
   }
   if (process.env.PI_SERVER_SESSION_RESET_IDLE_MINUTES) {
     const mins = parseInt(process.env.PI_SERVER_SESSION_RESET_IDLE_MINUTES, 10);
@@ -101,15 +103,6 @@ export function loadConfig(configPath?: string): ServerConfig {
       );
     }
     config.sessionReset.idleMinutes = mins;
-  }
-  if (process.env.PI_SERVER_SESSION_RESET_AT_HOUR) {
-    const hour = parseInt(process.env.PI_SERVER_SESSION_RESET_AT_HOUR, 10);
-    if (isNaN(hour) || hour < 0 || hour > 23) {
-      throw new ConfigError(
-        `Invalid PI_SERVER_SESSION_RESET_AT_HOUR: "${process.env.PI_SERVER_SESSION_RESET_AT_HOUR}". Must be 0-23.`,
-      );
-    }
-    config.sessionReset.atHour = hour;
   }
 
   return config;

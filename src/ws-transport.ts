@@ -207,10 +207,19 @@ export class WsTransport {
           return;
         }
 
-        // Authenticate
+        // Authenticate — extract Authorization header or ?apikey= from the WS upgrade request
         const remoteAddress = req.socket?.remoteAddress;
+        let authHeader = req.headers.authorization as string | undefined;
+        if (!authHeader) {
+          const url = req.url ?? "";
+          const apikeyMatch = url.match(/[?&]apikey=([^&]+)/i);
+          if (apikeyMatch) {
+            authHeader = `Bearer ${decodeURIComponent(apikeyMatch[1])}`;
+          }
+        }
         const authResult = await this.authProvider.authenticate({
           transport: "websocket",
+          authorization: authHeader,
           remoteAddress,
         });
 
@@ -253,7 +262,6 @@ export class WsTransport {
             protocolVersion: PROTOCOL_VERSION,
             serverVersion: "0.2.1",
             sessionId: session.sessionId,
-            sessions: this.sessionManager.list(),
             currentSeq: this.seq,
           },
           true,
@@ -490,7 +498,19 @@ export class WsTransport {
             );
             return;
           }
+          const oldSid = state.sessionId;
           state.sessionId = targetSid;
+
+          // Deactivate the old session's PiProcess to prevent orphaned processes
+          if (oldSid && oldSid !== targetSid) {
+            this.sessionManager.deactivate(oldSid).catch((err) => {
+              this.logger.error("Error deactivating old session on switch", {
+                sessionId: oldSid,
+                error: String(err),
+              });
+            });
+          }
+
           this.send(ws, {
             type: "response",
             requestId,
@@ -525,7 +545,8 @@ export class WsTransport {
           const pi = await this.sessionManager.getProcess(sid);
 
           // If prompt, start accumulating for persistence
-          const acc = commandType === "prompt" ? new MessageAccumulator(sid) : null;
+          const acc =
+            commandType === "prompt" ? new MessageAccumulator(sid) : null;
           if (commandType === "prompt") {
             EventLog.append({
               event: "chat_start",
@@ -573,8 +594,10 @@ export class WsTransport {
             // Feed accumulator for persistence
             if (acc) acc.feed(event);
 
-            // Track agent_end for session message count + persist + cleanup
+            // Mark streaming on first event, unmark on agent_end
+            this.sessionManager.setProcessStreaming(sid, true);
             if (event.type === "agent_end") {
+              this.sessionManager.setProcessStreaming(sid, false);
               this.sessionManager.incrementMessages(sid);
               if (acc) acc.flush();
               adapter.dispose();
@@ -591,6 +614,14 @@ export class WsTransport {
             sessionId: sid,
             payload: response,
           });
+
+          // Non-streaming commands (get_state, set_model, etc.) don't emit agent_end.
+          // Dispose the adapter immediately to prevent listener leak on PiProcess.
+          // Streaming commands (prompt, steer, follow_up) are cleaned up on agent_end instead.
+          const streamingTypes = new Set(["prompt", "steer", "follow_up"]);
+          if (!streamingTypes.has(commandType)) {
+            adapter.dispose();
+          }
         } catch (err) {
           this.send(
             ws,

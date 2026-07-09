@@ -38,10 +38,7 @@ export class MessageAccumulator {
     const evType = event.type as string;
 
     if (evType === "message_update") {
-      const ae = (event.assistantMessageEvent ?? {}) as Record<
-        string,
-        unknown
-      >;
+      const ae = (event.assistantMessageEvent ?? {}) as Record<string, unknown>;
       const dt = ae.type as string;
       if (dt === "text_delta") {
         this.textBuf += (ae.delta as string) || "";
@@ -67,7 +64,8 @@ export class MessageAccumulator {
     if (evType === "tool_execution_update") {
       const last = this.parts[this.parts.length - 1];
       if (last?.type === "tool_call") {
-        last.output = (last.output || "") + ((event.partialResult as string) || "");
+        last.output =
+          (last.output || "") + ((event.partialResult as string) || "");
       }
       return;
     }

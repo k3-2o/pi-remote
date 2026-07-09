@@ -46,14 +46,14 @@ export class EventLog {
     }
   }
 
-  /** Read the last N lines from the log. */
+  /** Read the last N lines from the log. Pass 0 or negative to get all lines. */
   static tail(n = 50): string[] {
     this.ensure();
     try {
       if (!existsSync(LOG_FILE)) return [];
       const content = readFileSync(LOG_FILE, "utf-8");
       const lines = content.trim().split("\n");
-      return lines.slice(-n);
+      return n > 0 ? lines.slice(-n) : lines;
     } catch {
       return [];
     }

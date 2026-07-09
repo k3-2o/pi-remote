@@ -239,12 +239,10 @@ export interface ServerConfig {
   };
   /** Session reset policy — prevents context window pileup in long-lived sessions */
   sessionReset: {
-    /** "idle" = reset after inactivity, "daily" = reset at fixed hour, "none" = never reset */
-    mode: "idle" | "daily" | "none";
+    /** "idle" = reset after inactivity, "none" = never reset */
+    mode: "idle" | "none";
     /** Minutes of inactivity before idle reset. Ignored when mode != "idle". */
     idleMinutes: number;
-    /** Hour of day (0-23) for daily reset. Ignored when mode != "daily". */
-    atHour: number;
   };
   server: {
     heartbeatInterval: number;
@@ -270,7 +268,6 @@ export const DEFAULT_CONFIG: ServerConfig = {
   sessionReset: {
     mode: "idle",
     idleMinutes: 30,
-    atHour: 4,
   },
   server: {
     heartbeatInterval: 30000,

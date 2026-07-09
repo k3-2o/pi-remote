@@ -32,6 +32,7 @@ Copy this file into your project. Requires: pip install websockets
 """
 
 import asyncio, json, time
+from urllib.parse import quote
 
 try:
     import websockets
@@ -60,7 +61,12 @@ class PiRemoteWS:
         if self._connected:
             return self
 
-        self.ws = await websockets.connect(self.url)
+        # Append api_key as query param if provided (for WS auth)
+        ws_url = self.url
+        if self.api_key:
+            separator = "&" if "?" in ws_url else "?"
+            ws_url = f"{ws_url}{separator}apikey={quote(self.api_key, safe='')}"
+        self.ws = await websockets.connect(ws_url)
 
         # Send hello handshake with optional per-session config
         hello = {

@@ -27,17 +27,6 @@ export class PiProcessError extends PiServerError {
   }
 }
 
-export class PiCrashedError extends PiServerError {
-  constructor(exitCode: number | null, stderr: string) {
-    super(
-      `Pi process crashed (exit code: ${exitCode}). Stderr: ${stderr.slice(0, 500)}`,
-      "PI_CRASHED",
-      502,
-    );
-    this.name = "PiCrashedError";
-  }
-}
-
 export class ConfigError extends PiServerError {
   constructor(message: string) {
     super(message, "CONFIG_ERROR", 1);
@@ -49,19 +38,5 @@ export class AuthError extends PiServerError {
   constructor(message: string = "Authentication failed") {
     super(message, "AUTH_ERROR", 401);
     this.name = "AuthError";
-  }
-}
-
-export class RateLimitError extends PiServerError {
-  constructor() {
-    super("Rate limit exceeded", "RATE_LIMIT", 429);
-    this.name = "RateLimitError";
-  }
-}
-
-export class ValidationError extends PiServerError {
-  constructor(message: string) {
-    super(message, "VALIDATION_ERROR", 400);
-    this.name = "ValidationError";
   }
 }

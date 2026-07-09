@@ -55,8 +55,7 @@ All values shown with their defaults:
   },
   "sessionReset": {
     "mode": "idle",
-    "idleMinutes": 30,
-    "atHour": 4
+    "idleMinutes": 30
   },
   "server": {
     "heartbeatInterval": 30000,
@@ -97,9 +96,8 @@ Prevents Pi context windows from piling up in long-lived connections. When a ses
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `sessionReset.mode` | string | idle | `idle` (reset after silence), `daily` (reset at fixed hour), `none` (never) |
+| `sessionReset.mode` | string | idle | `idle` (reset after silence), `none` (never) |
 | `sessionReset.idleMinutes` | number | 30 | Minutes of inactivity before reset |
-| `sessionReset.atHour` | number | 4 | Hour (0–23) for daily reset |
 
 ### Server Internals
 
@@ -128,7 +126,6 @@ All config keys can be overridden via environment variables. Useful for Docker, 
 | `PI_SERVER_PI_COMMAND` | `piCommand` |
 | `PI_SERVER_SESSION_RESET_MODE` | `sessionReset.mode` |
 | `PI_SERVER_SESSION_RESET_IDLE_MINUTES` | `sessionReset.idleMinutes` |
-| `PI_SERVER_SESSION_RESET_AT_HOUR` | `sessionReset.atHour` |
 
 Example:
 

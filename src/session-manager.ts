@@ -22,6 +22,7 @@ export interface SessionRecord {
   isStreaming: boolean;
   sessionName?: string;
   active: boolean; // false = Pi process freed, record kept for history
+  thinkingLevel: string;
 }
 
 export class SessionManager {
@@ -53,7 +54,14 @@ export class SessionManager {
     }
 
     // Create the Pi process (starts Pi in RPC mode)
-    await this.processManager.getOrCreate(id, systemPrompt, appendSystemPrompt, noTools, noExtensions, tools);
+    await this.processManager.getOrCreate(
+      id,
+      systemPrompt,
+      appendSystemPrompt,
+      noTools,
+      noExtensions,
+      tools,
+    );
 
     const record: SessionRecord = {
       sessionId: id,
@@ -62,6 +70,7 @@ export class SessionManager {
       messageCount: 0,
       isStreaming: false,
       active: true,
+      thinkingLevel: "medium",
     };
 
     this.sessions.set(id, record);
@@ -136,7 +145,15 @@ export class SessionManager {
     noExtensions?: boolean,
     tools?: string[],
   ): Promise<SessionInfo> {
-    return this.create(undefined, undefined, systemPrompt, appendSystemPrompt, noTools, noExtensions, tools);
+    return this.create(
+      undefined,
+      undefined,
+      systemPrompt,
+      appendSystemPrompt,
+      noTools,
+      noExtensions,
+      tools,
+    );
   }
 
   /**
@@ -181,6 +198,14 @@ export class SessionManager {
   }
 
   /**
+   * Mark a session's PiProcess as streaming or not.
+   * Prevents the process from being evicted by the pool while active.
+   */
+  setProcessStreaming(sessionId: string, streaming: boolean): void {
+    this.processManager.setStreaming(sessionId, streaming);
+  }
+
+  /**
    * List all sessions.
    */
   list(): SessionInfo[] {
@@ -216,6 +241,16 @@ export class SessionManager {
   }
 
   /**
+   * Update the thinking level for a session.
+   */
+  setThinkingLevel(sessionId: string, level: string): void {
+    const record = this.sessions.get(sessionId);
+    if (record) {
+      record.thinkingLevel = level;
+    }
+  }
+
+  /**
    * Get number of active sessions (Pi process running).
    */
   get count(): number {
@@ -244,7 +279,7 @@ export class SessionManager {
       messageCount: record.messageCount,
       createdAt: record.createdAt.toISOString(),
       active: record.active,
-      thinkingLevel: "medium",
+      thinkingLevel: record.thinkingLevel,
     };
   }
 }

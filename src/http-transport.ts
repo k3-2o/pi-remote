@@ -50,10 +50,7 @@ export class HttpTransport {
 
     // Auth middleware
     this.app.use("*", async (c, next) => {
-      if (
-        c.req.path === "/v1/health" ||
-        c.req.path === "/v1/version"
-      ) {
+      if (c.req.path === "/v1/health" || c.req.path === "/v1/version") {
         await next();
         return;
       }
@@ -259,7 +256,7 @@ export class HttpTransport {
       const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
 
       try {
-        const lines = EventLog.tail(500);
+        const lines = EventLog.tail(5000);
         const filtered = lines
           .map((l) => {
             try {

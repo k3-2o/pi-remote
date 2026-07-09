@@ -22,6 +22,7 @@ interface ManagedProcess {
   lastActivity: number;
   restartAttempts: number;
   createdAt: number;
+  isStreaming: boolean;
   systemPrompt?: string;
   appendSystemPrompt?: string[];
   noTools?: boolean;
@@ -122,6 +123,7 @@ export class PiProcessManager {
       noTools: storedNoTools,
       noExtensions: storedNoExtensions,
       tools: storedTools,
+      isStreaming: false,
     };
 
     // Wire crash handler for auto-restart
@@ -218,6 +220,15 @@ export class PiProcessManager {
     await Promise.allSettled(ids.map((id) => this.remove(id)));
   }
 
+  /** Mark a session as streaming (active) or not. Helps evictOldest prefer idle processes. */
+  setStreaming(sessionId: string, streaming: boolean): void {
+    const managed = this.processes.get(sessionId);
+    if (managed) {
+      managed.isStreaming = streaming;
+      if (streaming) managed.lastActivity = Date.now();
+    }
+  }
+
   /**
    * Get count of running processes.
    */
@@ -269,16 +280,27 @@ export class PiProcessManager {
   }
 
   /**
-   * Evict the oldest process to free a slot when the pool is full.
-   * Picks the process with the oldest lastActivity — panic-eviction, not idle-specific.
-   * The idle check (checkIdle) handles timeout-based cleanup separately.
+   * Evict a process to free a slot when the pool is full.
+   * Prefers non-streaming (idle) processes over active ones.
+   * Falls back to the oldest active process if all are busy.
    */
   private evictOldest(): void {
     let oldest: { sessionId: string; lastActivity: number } | null = null;
 
+    // First pass: prefer idle (non-streaming) processes
     for (const [sessionId, managed] of this.processes) {
+      if (managed.isStreaming) continue;
       if (!oldest || managed.lastActivity < oldest.lastActivity) {
         oldest = { sessionId, lastActivity: managed.lastActivity };
+      }
+    }
+
+    // Second pass: if all are streaming, evict the oldest active one anyway
+    if (!oldest) {
+      for (const [sessionId, managed] of this.processes) {
+        if (!oldest || managed.lastActivity < oldest.lastActivity) {
+          oldest = { sessionId, lastActivity: managed.lastActivity };
+        }
       }
     }
 

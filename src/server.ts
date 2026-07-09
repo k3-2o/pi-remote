@@ -72,6 +72,8 @@ export class PiServer {
 
     // ── Process pool (transport-agnostic) ─────────────────
     const resetPolicy = this.config.sessionReset;
+    // Prefer sessionTimeout (seconds) as the primary idle timeout setting.
+    // idleMinutes is a legacy alias documented for reference — both default to 30min.
     const idleTimeoutMs =
       resetPolicy.mode === "none"
         ? 0
@@ -223,6 +225,11 @@ export class PiServer {
     const providers: AuthProvider[] = [];
     if (this.config.auth.enabled && this.config.auth.apiKeys.length > 0)
       providers.push(new ApiKeyAuthProvider(this.config.auth.apiKeys));
+    if (this.config.auth.enabled && this.config.auth.apiKeys.length === 0) {
+      this.logger.warn(
+        "Auth is enabled but no API keys configured — all connections will be rejected.",
+      );
+    }
     if (!this.config.auth.enabled) providers.push(new NoAuthProvider());
     return providers.length === 1
       ? providers[0]

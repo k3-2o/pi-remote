@@ -55,10 +55,21 @@ export class PiRemoteWS {
 
   // ── Lifecycle ──────────────────────────────────────────
 
-  async connect({ systemPrompt, appendSystemPrompt, noTools, noExtensions, tools } = {}) {
+  async connect({
+    systemPrompt,
+    appendSystemPrompt,
+    noTools,
+    noExtensions,
+    tools,
+  } = {}) {
     if (this.#connected) return;
 
-    const ws = new WebSocket(this.#url);
+    // Append apiKey as query param if provided (for WS auth)
+    const wsUrl = this.#apiKey
+      ? `${this.#url}${this.#url.includes("?") ? "&" : "?"}apikey=${encodeURIComponent(this.#apiKey)}`
+      : this.#url;
+
+    const ws = new WebSocket(wsUrl);
     this.#ws = ws;
 
     await new Promise((resolve, reject) => {
@@ -237,9 +248,7 @@ export class PiRemoteWS {
 
       this.#pendingCommands.set(requestId, { resolve, reject, timer });
 
-      this.#ws.send(
-        JSON.stringify({ type: "command", payload, requestId }),
-      );
+      this.#ws.send(JSON.stringify({ type: "command", payload, requestId }));
     });
   }
 
@@ -390,9 +399,7 @@ if (
 
   console.log(`Connecting to ${url}...`);
   await client.connect();
-  console.log(
-    `Connected! Session: ${client.sessionId}, Server: v0.2.0`,
-  );
+  console.log(`Connected! Session: ${client.sessionId}, Server: v0.2.1`);
 
   // Health check
   const health = await client.health();
@@ -403,9 +410,7 @@ if (
   // Chat with streaming
   console.log(`> ${message}\n`);
   client.on("token", (t) => process.stdout.write(t));
-  client.on("tool_start", ({ tool, args }) =>
-    console.log(`\n[Tool: ${tool}]`),
-  );
+  client.on("tool_start", ({ tool, args }) => console.log(`\n[Tool: ${tool}]`));
 
   const result = await client.chat(message);
   console.log(`\n\nDone. ${result.toolCalls.length} tool calls.`);

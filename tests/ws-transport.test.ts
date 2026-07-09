@@ -144,8 +144,7 @@ describe("WebSocket Handshake", () => {
     expect(welcome.sessionId).toBeTruthy();
     expect(typeof welcome.sessionId).toBe("string");
     expect(welcome.sessionId.length).toBeGreaterThan(10);
-    expect(welcome.sessions).toBeDefined();
-    expect(Array.isArray(welcome.sessions)).toBe(true);
+    expect(welcome.currentSeq).toBeDefined();
 
     ws.close();
   });
