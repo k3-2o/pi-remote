@@ -16,7 +16,7 @@ The client never sees JSON-RPC. Pi's output is wrapped inside a `payload` field 
 ```
 Client → Server:  { type: "hello", protocolVersion: 1, clientId: "my-bot" }
 
-Server → Client:  { type: "welcome", protocolVersion: 1, serverVersion: "0.2.1",
+Server → Client:  { type: "welcome", protocolVersion: 1, serverVersion: "0.5.0",
                     sessionId: "abc123", sessions: [...], currentSeq: 0 }
 ```
 

@@ -54,7 +54,7 @@ Show server health: version, uptime, session count. Calls `GET /v1/health` on th
 
 ```bash
 pi-remote health
-# → pi-remote v0.2.1
+# → pi-remote v0.5.0
 # →   Status:    ok
 # →   Uptime:    2h 15m
 # →   Sessions:  3
@@ -144,7 +144,7 @@ Print the version and exit.
 
 ```bash
 pi-remote --version
-# → 0.2.1
+# → 0.5.0
 ```
 
 ### `--help`

@@ -22,7 +22,7 @@ Verify it installed:
 
 ```bash
 pi-remote --version
-# → 0.2.1
+# → 0.5.0
 ```
 
 ---
@@ -36,7 +36,7 @@ pi-remote start
 You should see:
 
 ```
-pi-remote v0.2.1 started on http://0.0.0.0:8080
+pi-remote v0.5.0 started on http://0.0.0.0:8080
 ```
 
 The server runs in the foreground. Press `Ctrl+C` to stop.
@@ -56,7 +56,7 @@ pi-remote health
 ```
 
 ```
-pi-remote v0.2.1
+pi-remote v0.5.0
   Status:    ok
   Uptime:    0m 12s
   Sessions:  0
@@ -66,7 +66,7 @@ Or with curl:
 
 ```bash
 curl http://localhost:8080/v1/health
-# → {"status":"ok","uptime":12.4,"sessions":0,"version":"0.2.1"}
+# → {"status":"ok","uptime":12.4,"sessions":0,"version":"0.5.0"}
 ```
 
 ---

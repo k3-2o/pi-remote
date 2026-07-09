@@ -39,7 +39,7 @@ npm install -g @k3_2o/pi-remote
 Verify it installed:
 ```bash
 pi-remote --version
-# Should print something like 0.2.1
+# Should print something like 0.5.0
 ```
 
 ---
@@ -52,7 +52,7 @@ pi-remote start
 
 You should see:
 ```
-pi-remote v0.2.1 started on http://0.0.0.0:8080
+pi-remote v0.5.0 started on http://0.0.0.0:8080
 ```
 
 The server is now running in this terminal window. Open a **new terminal** for the next steps.
@@ -72,7 +72,7 @@ curl http://localhost:8080/v1/health
 
 You should get back:
 ```json
-{"status":"ok","uptime":5.2,"sessions":0,"version":"0.2.1"}
+{"status":"ok","uptime":5.2,"sessions":0,"version":"0.5.0"}
 ```
 
 If this fails, the server isn't running. Go back to Step 2.

@@ -1,6 +1,6 @@
 {
   "name": "@k3_2o/pi-remote",
-  "version": "0.2.1",
+  "version": "0.5.0",
   "description": "A thin server runtime for Pi Coding Agent — WebSocket-first, HTTP as sugar. Turns pi --mode rpc into a network service.",
   "type": "module",
   "main": "dist/cli.js",

@@ -124,7 +124,7 @@ pi --version
 sudo npm install -g @k3_2o/pi-remote
 
 # Verify pi-remote works
-pi-remote --version   # → 0.2.1
+pi-remote --version   # → 0.5.0
 ```
 
 > **Why `sudo npm install -g`?** Global npm packages are installed to `/usr/lib/node_modules/` which requires root. This makes `pi` and `pi-remote` available system-wide for all users, including systemd.
@@ -179,7 +179,7 @@ pi-remote start
 You should see:
 
 ```
-pi-remote v0.2.1 started on http://127.0.0.1:8080
+pi-remote v0.5.0 started on http://127.0.0.1:8080
 ```
 
 > **Note `127.0.0.1`** — not `0.0.0.0`. The config we created binds it to localhost. Only nginx (or curl from the same machine) can reach it.
@@ -189,7 +189,7 @@ Open a **second SSH session** to the server and run a quick test:
 ```bash
 # Health check (no auth required)
 curl http://127.0.0.1:8080/v1/health
-# → {"status":"ok","uptime":12.4,"sessions":0,"version":"0.2.1"}
+# → {"status":"ok","uptime":12.4,"sessions":0,"version":"0.5.0"}
 
 # Send a chat (auth required)
 curl -N -X POST http://127.0.0.1:8080/v1/chat \
@@ -452,7 +452,7 @@ sudo systemctl status pi-remote
 
 # View live logs
 journalctl -u pi-remote -f
-# → [INFO] pi-remote v0.2.1 started on http://127.0.0.1:8080
+# → [INFO] pi-remote v0.5.0 started on http://127.0.0.1:8080
 ```
 
 Press `Ctrl+C` to stop following logs.
@@ -467,7 +467,7 @@ From your **local machine** (not the VPS):
 
 ```bash
 curl https://pi.yourdomain.com/v1/health
-# → {"status":"ok","uptime":35.2,"sessions":0,"version":"0.2.1"}
+# → {"status":"ok","uptime":35.2,"sessions":0,"version":"0.5.0"}
 ```
 
 If this fails, check:
