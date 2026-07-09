@@ -37,6 +37,7 @@ import type { AuthProvider } from "./auth.js";
 import type { Logger } from "./logger.js";
 import { EventLog } from "./event-log.js";
 import { MessageAccumulator } from "./message-accumulator.js";
+import { VERSION } from "./version.js";
 
 export class HttpTransport {
   private app: Hono;
@@ -85,13 +86,13 @@ export class HttpTransport {
         status: "ok",
         uptime: process.uptime(),
         sessions: this.sessionManager.count,
-        version: "0.2.1",
+        version: VERSION,
       });
     });
 
     this.app.get("/v1/version", (c) => {
       return c.json({
-        version: "0.2.1",
+        version: VERSION,
         protocol: "1.0.0",
       });
     });

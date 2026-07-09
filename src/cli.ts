@@ -20,8 +20,7 @@ import { PiServer } from "./server.js";
 import { PiProcess } from "./pi-process.js";
 import { loadConfig } from "./config.js";
 import { ConsoleLogger } from "./logger.js";
-
-const VERSION = "0.2.1";
+import { VERSION } from "./version.js";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);

@@ -24,6 +24,7 @@ import { RpcAdapter } from "./rpc-adapter.js";
 import { EventLog } from "./event-log.js";
 import { MessageAccumulator } from "./message-accumulator.js";
 import type { SessionInfo } from "./types.js";
+import { VERSION } from "./version.js";
 
 const PROTOCOL_VERSION = 1;
 
@@ -260,7 +261,7 @@ export class WsTransport {
           {
             type: "welcome",
             protocolVersion: PROTOCOL_VERSION,
-            serverVersion: "0.2.1",
+            serverVersion: VERSION,
             sessionId: session.sessionId,
             currentSeq: this.seq,
           },
@@ -388,7 +389,7 @@ export class WsTransport {
               uptime: process.uptime(),
               sessions: this.sessionManager.count,
               wsClients: this.connectedClients,
-              version: "0.2.1",
+              version: VERSION,
             },
           });
           return;
@@ -399,7 +400,7 @@ export class WsTransport {
             type: "response",
             requestId,
             seq: this.seq++,
-            payload: { version: "0.2.1", protocol: `${PROTOCOL_VERSION}.0.0` },
+            payload: { version: VERSION, protocol: `${PROTOCOL_VERSION}.0.0` },
           });
           return;
         }
