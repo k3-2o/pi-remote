@@ -38,40 +38,31 @@ pi-remote sessions             # list sessions
 
 ## Documentation
 
-### Quick Start
-| Document | What's in it |
-|---|---|
-| [Getting Started](docs/getting-started.md) | Five-minute install + curl test — verify it works |
+### Documentation Index
 
-### Tutorials
-| Document | What's in it |
-|---|---|
-| [Your First Chat](docs/tutorials/your-first-chat.md) | Step-by-step from zero — install, connect, send your first message, learn the SDK |
-
-### How-to Guides
-| Document | What's in it |
-|---|---|
-| [Build a Discord Bot](docs/how-to/discord-bot.md) | Connect pi-remote to a Discord bot — real example |
-| [Triggers](docs/how-to/triggers.md) | Discord bots, cron jobs, webhooks — patterns for connecting anything |
-| [Daemon Mode](docs/how-to/daemon-mode.md) | Background, systemd, logs |
-| [Docker](docs/how-to/docker.md) | Run in a container |
-| [Production Setup](docs/how-to/production.md) | TLS, rate limiting, log rotation |
-
-### Reference
-| Document | What's in it |
-|---|---|
-| [SDK Reference](docs/reference/sdk.md) | Every method and event — abstracted vs raw, examples |
-| [CLI Reference](docs/reference/cli.md) | Every command with options |
-| [Configuration](docs/reference/configuration.md) | Every config option with defaults |
-| [Protocol](docs/reference/protocol.md) | WebSocket handshake, commands, events, extension UI |
-
-### Explanation
-| Document | What's in it |
-|---|---|
-| [How It Works](docs/explanation/how-it-works.md) | The pipe model — what we built vs what emerged from Pi |
-| [Architecture](docs/explanation/architecture.md) | Why WebSocket, process model, design decisions |
+| Document | Type | What's in it |
+|---|---|---|
+| [Getting Started](docs/getting-started.md) | Quick Start | Five-minute install + curl test — verify it works |
+| [Your First Chat](docs/tutorials/your-first-chat.md) | Tutorial | Step-by-step from zero — install, connect, send your first message, learn the SDK |
+| [Deploy to a VPS](docs/tutorials/deploy-to-vps.md) | Tutorial | Bare Ubuntu server to production pi-remote behind nginx with TLS, auto-start, and API key auth |
+| [Build a Discord Bot](docs/how-to/discord-bot.md) | How-to | Connect pi-remote to a Discord bot — real example |
+| [Triggers](docs/how-to/triggers.md) | How-to | Discord bots, cron jobs, webhooks — patterns for connecting anything |
+| [Daemon Mode](docs/how-to/daemon-mode.md) | How-to | Background, systemd, logs |
+| [Docker](docs/how-to/docker.md) | How-to | Run in a container |
+| [Production Setup](docs/how-to/production.md) | How-to | TLS, rate limiting, log rotation |
+| [SDK Reference](docs/reference/sdk.md) | Reference | Every method and event — abstracted vs raw, examples |
+| [CLI Reference](docs/reference/cli.md) | Reference | Every command with options |
+| [Configuration](docs/reference/configuration.md) | Reference | Every config option with defaults |
+| [Protocol](docs/reference/protocol.md) | Reference | WebSocket handshake, commands, events, extension UI |
+| [Deployment Paths](docs/reference/deployment-paths.md) | Reference | VPS providers, tunnel alternatives, bare metal — comparison and trade-offs |
+| [How It Works](docs/explanation/how-it-works.md) | Explanation | The pipe model — what we built vs what emerged from Pi |
+| [Architecture](docs/explanation/architecture.md) | Explanation | Why WebSocket, process model, design decisions |
 
 ---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 

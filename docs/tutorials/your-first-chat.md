@@ -19,7 +19,7 @@ By the end of this tutorial, you'll have a working script that:
 Check these before you start:
 
 ```bash
-node --version    # Need 18 or higher
+node --version    # Need 22 or higher
 pi --version      # Need Pi installed: npm install -g @earendil-works/pi-coding-agent
 ```
 
@@ -83,9 +83,23 @@ If this fails, the server isn't running. Go back to Step 2.
 
 Create a new file called `first-chat.mjs`:
 
+**Option A — import from npm** (if you installed `@k3_2o/pi-remote`):
+```js
+import { PiRemoteWS } from "@k3_2o/pi-remote/client";
+```
+
+**Option B — copy the SDK file** (no npm dependency needed):
+```bash
+cp node_modules/@k3_2o/pi-remote/examples/pi_remote_ws.mjs .
+```
+Then import from the local file:
 ```js
 import { PiRemoteWS } from "./pi_remote_ws.mjs";
+```
 
+The rest of the script is the same either way:
+
+```js
 async function main() {
   // 1. Open the connection
   const client = new PiRemoteWS("ws://localhost:8080");
@@ -104,11 +118,6 @@ async function main() {
 }
 
 main().catch(console.error);
-```
-
-Now copy the SDK file next to your script:
-```bash
-cp node_modules/@k3_2o/pi-remote/examples/pi_remote_ws.mjs .
 ```
 
 ---

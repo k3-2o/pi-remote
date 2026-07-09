@@ -6,7 +6,7 @@ A step-by-step guide from zero to your first Pi chat over the network.
 
 ## Prerequisites
 
-- **Node.js 18** or later
+- **Node.js 22** or later
 - **Pi Coding Agent** installed: `npm install -g @earendil-works/pi-coding-agent`
 - Verify Pi works: `pi --version`
 
@@ -162,12 +162,16 @@ sudo pi-remote uninstall  # remove systemd service
 ## Next Steps
 
 - [Follow the full tutorial](tutorials/your-first-chat.md) — step by step, from zero to your first message
+- [Deploy to a VPS](tutorials/deploy-to-vps.md) — bare Ubuntu server to production with TLS
 - [Build a Discord bot](how-to/discord-bot.md) — real example using the SDK
 - [Configure](reference/configuration.md) port, auth, session limits, reset policies
 - [Connect triggers](how-to/triggers.md) — Discord bots, cron jobs, GitHub webhooks
 - [Run as a daemon](how-to/daemon-mode.md) — background, systemd, logs
 - [Run in Docker](how-to/docker.md) — containerised deployment
 - [Production setup](how-to/production.md) — TLS, rate limiting, log rotation
+- [Deployment paths](reference/deployment-paths.md) — VPS providers, tunnels, bare metal compared
 - [Read the protocol](reference/protocol.md) — WebSocket commands, events, extension UI
 - [Explore the SDK](reference/sdk.md) — all methods, events, patterns
 - [All CLI commands](reference/cli.md) — every subcommand with options
+- [How it works](explanation/how-it-works.md) — the pipe model under the hood
+- [Architecture](explanation/architecture.md) — why WebSocket, process model, design decisions

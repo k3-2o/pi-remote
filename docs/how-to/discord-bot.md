@@ -96,9 +96,24 @@ npm init -y
 npm install discord.js ws
 ```
 
-Copy the SDK:
+### Get the SDK
+
+You can import from the npm package **or** copy the SDK file next to your script.
+
+**Option A — import from npm** (recommended):
 ```bash
-cp ../pi-server/examples/pi_remote_ws.mjs .
+npm install @k3_2o/pi-remote
+```
+```js
+import { PiRemoteWS } from "@k3_2o/pi-remote/client";
+```
+
+**Option B — copy the file** (no dependency, single file):
+```bash
+cp node_modules/@k3_2o/pi-remote/examples/pi_remote_ws.mjs .
+```
+```js
+import { PiRemoteWS } from "./pi_remote_ws.mjs";
 ```
 
 ---

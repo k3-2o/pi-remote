@@ -54,6 +54,15 @@ Environment=PI_SERVER_HOST=0.0.0.0
 WantedBy=multi-user.target
 ```
 
+> **Bind address (`PI_SERVER_HOST`) — pick based on your setup:**
+>
+> | Value | When to use |
+> |---|---|
+> | `0.0.0.0` (shown above) | pi-remote is **directly exposed** (no reverse proxy) — e.g. you reach it over Tailscale/Cloudflare Tunnel, or you control the firewall. Listens on all interfaces. |
+> | `127.0.0.1` | pi-remote sits **behind a reverse proxy** (nginx/Caddy). Only the proxy on the same machine can reach it — the internet never touches port 8080 directly. Recommended for the [production deploy](../tutorials/deploy-to-vps.md). |
+>
+> The same applies to the `host` field in your config file, or the `--host` CLI flag. All three set the same thing.
+
 **Managing the service:**
 
 ```bash
